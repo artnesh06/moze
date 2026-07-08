@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
+  <title>Moze</title>
+  <meta name="description" content="Moze — 1,000 hand-drawn street art PFPs. Free mint on Robinhood.">
+  <meta property="og:title" content="Moze">
+  <meta property="og:description" content="1,000 generative street art PFPs. Pure art. Free mint on Robinhood.">
+  <meta property="og:image" content="assets/collection/1.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:site" content="@mozenft_">
+  <link rel="icon" href="assets/profile.jpg" type="image/jpeg">
+  <meta name="theme-color" content="#5c1a2e">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <div class="banner-top">
+    <a href="https://opensea.io/collection/mozestreetart/overview" target="_blank" rel="noopener">
+      <img id="top-banner" src="assets/banner-1.png" alt="Moze Banner" class="banner-img">
+    </a>
+  </div>
+
+  <div class="page-wrap">
+
+    <div class="m_box">
+      <div class="m_box_bar"><h2>Welcome to Moze!</h2></div>
+      <p class="centered-text intro">
+        Moze is a collection of <strong>1,000</strong> hand-drawn street art PFPs.
+        Pure art — no AI, no roadmap. Free mint on Robinhood.
+      </p>
+      <hr>
+      <p class="centered-text links">
+        <a href="https://x.com/mozenft_" target="_blank" rel="noopener">Moze Official Twitter</a>
+        |
+        <a href="https://x.com/artnesh" target="_blank" rel="noopener">Creator @artnesh</a>
+        |
+        <a href="https://opensea.io/collection/mozestreetart/overview" target="_blank" rel="noopener">OpenSea</a>
+      </p>
+    </div>
+
+    <div class="m_box" id="collection">
+      <div class="m_box_bar"><h2>Moze Collection</h2></div>
+      <p class="centered-text">Rooted in street art — every trait illustrated by hand.</p>
+      <br>
+      <img id="hero-img" src="assets/moze-hero.gif" alt="Moze collection preview" class="hero-img hero-gif">
+      <p class="centered-text hero-caption">
+        <strong id="hero-name">1,000 unique Moze</strong><br>
+        <span id="hero-trait">Hand-drawn street art PFPs</span>
+      </p>
+      <p class="centered-text">
+        <a href="https://opensea.io/collection/mozestreetart/overview" target="_blank" rel="noopener">
+          View and trade the Moze collection on OpenSea.
+        </a>
+      </p>
+    </div>
+
+    <div class="m_box" id="gallery">
+      <div class="m_box_bar"><h2>Gallery</h2></div>
+      <p class="centered-text">Click any Moze to feature it above.</p>
+      <div id="gallery-grid" class="gallery_container"></div>
+    </div>
+
+    <div class="m_box" id="traits">
+      <div class="m_box_bar"><h2>Trait Lab — Dress Up</h2></div>
+      <p class="centered-text">
+        <span id="traits-desc">151 traits across 7 layers.</span> Mix traits and generate a brand new Moze.
+      </p>
+      <div class="trait-lab">
+        <div class="composer-wrap">
+          <div id="composer-canvas" class="composer-canvas">
+            <div class="composer-empty">Generating…</div>
+          </div>
+          <p id="composer-caption" class="composer-caption centered-text"></p>
+          <div class="composer-actions">
+            <button type="button" id="random-traits" class="connect-button">Randomize</button>
+            <button type="button" id="download-moze" class="connect-button" disabled>Download PNG</button>
+          </div>
+        </div>
+        <div class="trait-picker">
+          <div id="trait-tabs" class="trait-tabs"></div>
+          <div id="trait-items" class="trait-items"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="m_box">
+      <div class="m_box_bar"><h2>Trait Parallels</h2></div>
+      <p>
+        <strong>Moze Trait Parallels:</strong>
+        Hand-drawn traits inspired by pop culture, street art, and anime —
+        each layer references the culture you already know.
+      </p>
+      <hr>
+
+      <div class="parallel-block">
+        <p class="parallel-title"><strong>Donald Duck → Duck Hat</strong></p>
+        <img src="assets/compare-donald.png" alt="Donald Duck reference, Duck Hat trait, and Moze #54" class="compare-wide">
+        <p class="centered-text fine">
+          <a href="https://media.newyorker.com/photos/5cf81a2b78887298005c996a/master/w_2560%2Cc_limit/KidLit-DonaldDuck.jpg" target="_blank" rel="noopener">KidLit — Donald Duck</a>
+          · Trait: <strong>Duck Hat</strong> · <a href="https://opensea.io/collection/mozestreetart/overview" target="_blank" rel="noopener">Moze #54</a>
+        </p>
+      </div>
+
+      <hr>
+
+      <div class="parallel-block">
+        <p class="parallel-title"><strong>Naruto → Monkey King Headband</strong></p>
+        <img src="assets/compare-naruto.png" alt="Naruto reference, Monkey King Headband trait, and Moze #40" class="compare-wide">
+        <p class="centered-text fine">
+          <a href="https://cdng.europosters.eu/pod_public/1300/271342.jpg" target="_blank" rel="noopener">Naruto Poster</a>
+          · Trait: <strong>Monkey King Headband</strong> · <a href="https://opensea.io/collection/mozestreetart/overview" target="_blank" rel="noopener">Moze #40</a>
+        </p>
+      </div>
+    </div>
+
+    <div class="m_box stake-box" id="stake">
+      <div class="m_box_bar"><h2>NFT Staking</h2></div>
+      <p class="centered-text stake-soft">
+        Stake your <a href="https://opensea.io/collection/mozestreetart/overview" target="_blank" rel="noopener">Moze Street Art</a> NFTs on Robinhood. Soft rewards for holders.
+      </p>
+
+      <div class="stake-dashboard">
+        <div class="stake-top">
+          <div class="stake-meta">
+            <div class="stake-stat">
+              <span class="stake-stat-label">Owned</span>
+              <strong id="stake-owned-count">—</strong>
+            </div>
+            <div class="stake-stat">
+              <span class="stake-stat-label">Staked</span>
+              <strong id="stake-staked-count">0</strong>
+            </div>
+            <div class="stake-stat">
+              <span class="stake-stat-label">Chain</span>
+              <strong>Robinhood</strong>
+            </div>
+          </div>
+          <button type="button" id="connect-wallet" class="connect-button stake-connect">Connect Wallet</button>
+        </div>
+
+        <p id="wallet-status" class="wallet-status centered-text">Connect wallet to load your Moze vault</p>
+
+        <div class="stake-vault">
+          <div class="stake-preview-panel">
+            <div class="stake-preview-frame">
+              <img id="stake-preview-img" src="assets/collection/54.png" alt="Moze preview" class="stake-preview-img">
+            </div>
+            <div class="stake-preview-info">
+              <strong id="stake-preview-name">Moze Vault</strong>
+              <span id="stake-preview-detail" class="fine">Select a Moze below to preview</span>
+            </div>
+          </div>
+          <div id="stake-nft-grid" class="stake-nft-grid">
+            <div class="stake-nft-empty">Your Moze NFTs will appear here after connecting wallet.</div>
+          </div>
+        </div>
+
+        <div class="stake-bottom">
+          <div class="stake-contract-row">
+            <span>Staking Contract</span>
+            <code id="stake-contract" class="stake-addr">0x0e579bcec21ae9dc5400db46cab67d5a8d0a58cc</code>
+            <button type="button" class="copy-btn" data-copy="0x0e579bcec21ae9dc5400db46cab67d5a8d0a58cc">copy</button>
+          </div>
+          <div class="stake-action-row">
+            <button type="button" id="stake-btn" class="connect-button stake-btn" disabled>Stake Selected</button>
+            <button type="button" id="unstake-btn" class="connect-button unstake-btn" disabled>Unstake</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="m_box" id="whitelist">
+      <div class="m_box_bar"><h2>Whitelist Check</h2></div>
+      <p class="centered-text">3,065 wallets are whitelisted for the free mint.</p>
+      <div class="mint-box">
+        <form id="wl-form" class="wl-form">
+          <input type="text" id="wallet-input" placeholder="Paste wallet address (0x...)" autocomplete="off" spellcheck="false">
+          <button type="submit" class="connect-button">Check Whitelist</button>
+        </form>
+        <div id="wl-result" class="wl-result" hidden>
+          <strong id="wl-status"></strong><br>
+          <span id="wl-detail"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="m_box_red" id="mint">
+      <div class="m_box_bar_red"><h2>Mint — Coming Soon</h2></div>
+      <div class="mint-box">
+        <p class="centered-text amount-minted">
+          Supply: <span class="current-supply">1,000</span> · Price: <strong>FREE</strong>
+        </p>
+        <ul class="mint-details">
+          <li>Collection: <strong>Moze Street Art</strong></li>
+          <li>Chain: <strong>Robinhood</strong></li>
+          <li>Platform: <strong>Robinhood App</strong></li>
+          <li>Traits: <strong id="trait-total">151</strong> unique · <strong>3,065</strong> whitelisted</li>
+        </ul>
+        <p class="centered-text mint-reserve-button">
+          <a href="https://x.com/mozenft_" target="_blank" rel="noopener">Drop wallet on X for WL →</a>
+        </p>
+      </div>
+    </div>
+
+    <div class="m_box_red">
+      <div class="m_box_bar_red"><h2>About Moze</h2></div>
+      <p class="centered-text">
+        Moze is a street art PFP project by
+        <a href="https://x.com/artnesh" target="_blank" rel="noopener">@artnesh</a> —
+        NFT artist & dev since 2019, creator of
+        <a href="https://generatemynft.fun" target="_blank" rel="noopener">generatemynft.fun</a>.
+      </p>
+      <hr>
+      <p class="centered-text links">
+        <a href="https://x.com/mozenft_" target="_blank" rel="noopener">@mozenft_</a>
+        |
+        <a href="https://x.com/artnesh" target="_blank" rel="noopener">@artnesh</a>
+        |
+        <a href="https://opensea.io/collection/mozestreetart/overview" target="_blank" rel="noopener">OpenSea</a>
+      </p>
+      <hr>
+      <p class="centered-text fine">Moze © 2026 — Pure art. No AI. No roadmap.</p>
+    </div>
+
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

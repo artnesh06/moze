@@ -1,0 +1,20 @@
+.DS_Store
+**/.DS_Store
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+.env.local
+*.credentials
+credentials.local
+secrets.*
+generated/*.png
+!generated/.gitkeep
+
+# folder lama duplikat — jangan push
+MOZE/
+source/launchpad-original/
+*.psd
+*.zip
+*.webp

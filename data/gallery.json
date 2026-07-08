@@ -1,0 +1,130 @@
+[
+  {
+    "id": 1,
+    "name": "Moze #1",
+    "image": "collection/1.png",
+    "background": "Army",
+    "skin": "Doll",
+    "head": "Blank#10"
+  },
+  {
+    "id": 5,
+    "name": "Moze #5",
+    "image": "collection/5.png",
+    "background": "Park",
+    "skin": "Hellheim Mark",
+    "head": "Mullet Hair"
+  },
+  {
+    "id": 12,
+    "name": "Moze #12",
+    "image": "collection/12.png",
+    "background": "Grandpa Home",
+    "skin": "Fire",
+    "head": "Mcd Worker Cap"
+  },
+  {
+    "id": 42,
+    "name": "Moze #42",
+    "image": "collection/42.png",
+    "background": "Sunset",
+    "skin": "Blank",
+    "head": "Rubber Bracelet Hat"
+  },
+  {
+    "id": 77,
+    "name": "Moze #77",
+    "image": "collection/77.png",
+    "background": "Strawberry",
+    "skin": "Blank",
+    "head": "Horn Blue Devil"
+  },
+  {
+    "id": 100,
+    "name": "Moze #100",
+    "image": "collection/100.png",
+    "background": "Station",
+    "skin": "Blank",
+    "head": "Graffiti Tattoo#1"
+  },
+  {
+    "id": 156,
+    "name": "Moze #156",
+    "image": "collection/156.png",
+    "background": "Winter Season",
+    "skin": "Thunder",
+    "head": "Blue Pink Hair"
+  },
+  {
+    "id": 234,
+    "name": "Moze #234",
+    "image": "collection/234.png",
+    "background": "Jeans",
+    "skin": "Justin Bieber Flame",
+    "head": "Duck Hat"
+  },
+  {
+    "id": 333,
+    "name": "Moze #333",
+    "image": "collection/333.png",
+    "background": "Castile",
+    "skin": "Fire",
+    "head": "Mummy Hat"
+  },
+  {
+    "id": 420,
+    "name": "Moze #420",
+    "image": "collection/420.png",
+    "background": "Grey",
+    "skin": "Justin Bieber Flame",
+    "head": "Ear Socks"
+  },
+  {
+    "id": 500,
+    "name": "Moze #500",
+    "image": "collection/500.png",
+    "background": "Sunkist",
+    "skin": "Thunder",
+    "head": "Skull Checkerboard"
+  },
+  {
+    "id": 666,
+    "name": "Moze #666",
+    "image": "collection/666.png",
+    "background": "Violet",
+    "skin": "Fire",
+    "head": "Party Hat"
+  },
+  {
+    "id": 777,
+    "name": "Moze #777",
+    "image": "collection/777.png",
+    "background": "Green",
+    "skin": "Ifrit Jambe",
+    "head": "Green Ears"
+  },
+  {
+    "id": 888,
+    "name": "Moze #888",
+    "image": "collection/888.png",
+    "background": "Error Site",
+    "skin": "Doll",
+    "head": "Duck Hat"
+  },
+  {
+    "id": 999,
+    "name": "Moze #999",
+    "image": "collection/999.png",
+    "background": "Bright Grey",
+    "skin": "Blank",
+    "head": "Mullet Hair"
+  },
+  {
+    "id": 1000,
+    "name": "Moze #1000",
+    "image": "collection/1000.png",
+    "background": "Incident",
+    "skin": "Thunder",
+    "head": "Gold Earring"
+  }
+]

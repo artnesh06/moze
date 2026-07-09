@@ -443,13 +443,37 @@ async function loadLeaderboardFromApi(force) {
     ? data.rows
     : (data.top || []);
   // Stakers only (backend filters; keep client guard)
-  const rows = sourceRows
+  let rows = sourceRows
     .map((r) => ({
-      addr: r.addr,
-      held: r.held,
+      addr: String(r.addr || '').toLowerCase(),
+      held: Number(r.held) || 0,
       staked: Number(r.staked) || 0,
       softMoze: Number(r.softMoze) || 0,
     }))
+    .filter((r) => r.staked > 0 || r.softMoze > 0);
+
+  // Merge local soft stake for connected wallet (if API not synced yet)
+  if (you) {
+    const localSoft = softStakePointsFor(you);
+    const localStaked = stakedCountFor(you);
+    if (localSoft > 0 || localStaked > 0) {
+      const idx = rows.findIndex((r) => r.addr === you);
+      if (idx >= 0) {
+        rows[idx].softMoze = Math.max(rows[idx].softMoze, localSoft);
+        rows[idx].staked = Math.max(rows[idx].staked, localStaked);
+        if (!rows[idx].held && stakeOwnedIds.length) rows[idx].held = stakeOwnedIds.length;
+      } else {
+        rows.push({
+          addr: you,
+          held: stakeOwnedIds.length || 0,
+          staked: localStaked,
+          softMoze: localSoft,
+        });
+      }
+    }
+  }
+
+  rows = rows
     .filter((r) => r.staked > 0 || r.softMoze > 0)
     .sort(
       (a, b) =>

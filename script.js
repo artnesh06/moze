@@ -328,10 +328,13 @@ let leaderboardLoading = false;
 /* ── moze-api (separate backend) ── */
 // Production: https://api.mozestreet.art
 // Local override: localStorage.setItem('moze-api','http://localhost:3000') or window.MOZE_API
+// Override: window.MOZE_API or localStorage moze-api
+// Default: api-moze.artnesh.cloud until A record api.mozestreet.art → 161.97.156.23 is live
+// Then switch default back to https://api.mozestreet.art
 const API_BASE = String(
   (typeof window !== 'undefined' && window.MOZE_API) ||
   (typeof localStorage !== 'undefined' && localStorage.getItem('moze-api')) ||
-  'https://api.mozestreet.art'
+  'https://api-moze.artnesh.cloud'
 ).replace(/\/$/, '');
 
 let apiOnline = null; // null unknown, true/false

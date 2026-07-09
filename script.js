@@ -434,6 +434,45 @@ async function apiSignedAction(action, tokenIds = []) {
   }
 }
 
+/** Inject/update connected wallet row from local soft-stake state (API may lag). */
+function mergeYouIntoLeaderboardRows(rowsIn) {
+  const rows = Array.isArray(rowsIn) ? rowsIn.map((r) => ({ ...r })) : [];
+  const you = stakeAccount ? String(stakeAccount).toLowerCase() : '';
+  if (!you) return rows;
+
+  const localSoft = softStakePointsFor(you);
+  const localStaked = stakedCountFor(you);
+  if (localSoft <= 0 && localStaked <= 0) return rows;
+
+  const idx = rows.findIndex((r) => String(r.addr || '').toLowerCase() === you);
+  if (idx >= 0) {
+    rows[idx] = {
+      ...rows[idx],
+      addr: you,
+      softMoze: Math.max(Number(rows[idx].softMoze) || 0, localSoft),
+      staked: Math.max(Number(rows[idx].staked) || 0, localStaked),
+      held: Number(rows[idx].held) || stakeOwnedIds.length || 0,
+    };
+  } else {
+    rows.push({
+      addr: you,
+      held: stakeOwnedIds.length || 0,
+      staked: localStaked,
+      softMoze: localSoft,
+    });
+  }
+
+  return rows
+    .filter((r) => (Number(r.staked) || 0) > 0 || (Number(r.softMoze) || 0) > 0)
+    .sort(
+      (a, b) =>
+        (Number(b.softMoze) || 0) - (Number(a.softMoze) || 0) ||
+        (Number(b.staked) || 0) - (Number(a.staked) || 0) ||
+        (Number(b.held) || 0) - (Number(a.held) || 0) ||
+        String(a.addr).localeCompare(String(b.addr))
+    );
+}
+
 async function loadLeaderboardFromApi(force) {
   const you = stakeAccount ? String(stakeAccount).toLowerCase() : '';
   const q = new URLSearchParams();
@@ -454,36 +493,7 @@ async function loadLeaderboardFromApi(force) {
     }))
     .filter((r) => r.staked > 0 || r.softMoze > 0);
 
-  // Merge local soft stake for connected wallet (if API not synced yet)
-  if (you) {
-    const localSoft = softStakePointsFor(you);
-    const localStaked = stakedCountFor(you);
-    if (localSoft > 0 || localStaked > 0) {
-      const idx = rows.findIndex((r) => r.addr === you);
-      if (idx >= 0) {
-        rows[idx].softMoze = Math.max(rows[idx].softMoze, localSoft);
-        rows[idx].staked = Math.max(rows[idx].staked, localStaked);
-        if (!rows[idx].held && stakeOwnedIds.length) rows[idx].held = stakeOwnedIds.length;
-      } else {
-        rows.push({
-          addr: you,
-          held: stakeOwnedIds.length || 0,
-          staked: localStaked,
-          softMoze: localSoft,
-        });
-      }
-    }
-  }
-
-  rows = rows
-    .filter((r) => r.staked > 0 || r.softMoze > 0)
-    .sort(
-      (a, b) =>
-        b.softMoze - a.softMoze ||
-        b.staked - a.staked ||
-        b.held - a.held ||
-        a.addr.localeCompare(b.addr)
-    );
+  rows = mergeYouIntoLeaderboardRows(rows);
   return {
     rows,
     supply: data.supply || 1000,
@@ -518,7 +528,8 @@ function syncLeaderboardVisibility() {
     else section.removeAttribute('aria-hidden');
   }
   if (show) {
-    loadHoldersLeaderboard(false);
+    // Force refresh so "you" always appears after stake (skip stale empty cache)
+    loadHoldersLeaderboard(true);
   }
 }
 
@@ -542,7 +553,7 @@ function initTraits() {
   syncLeaderboardVisibility();
 }
 
-const LB_CACHE_KEY = 'moze-stakers-lb-v2';
+const LB_CACHE_KEY = 'moze-stakers-lb-v3';
 const LB_CACHE_TTL = 5 * 60 * 1000; // 5 min
 const LB_TOP_N = 25;
 
@@ -651,10 +662,24 @@ function renderLeaderboardTable(data) {
   }
 }
 
+function applyLocalStakerToLeaderboardData(data) {
+  if (!data) return data;
+  const next = {
+    ...data,
+    rows: mergeYouIntoLeaderboardRows(data.rows || []),
+  };
+  return next;
+}
+
 async function loadHoldersLeaderboard(force) {
   if (!leaderboardVisible || leaderboardLoading) return;
   const tbody = document.getElementById('lb-tbody');
   const meta = document.getElementById('lb-meta');
+
+  if (force) {
+    leaderboardCache = null;
+    try { sessionStorage.removeItem(LB_CACHE_KEY); } catch { /* ignore */ }
+  }
 
   // session cache
   if (!force && !leaderboardCache) {
@@ -670,14 +695,10 @@ async function loadHoldersLeaderboard(force) {
   }
 
   if (!force && leaderboardCache) {
-    // merge local soft points if offline source
-    if (leaderboardCache.source !== 'api') {
-      leaderboardCache.rows = leaderboardCache.rows.map((r) => ({
-        ...r,
-        softMoze: softStakePointsFor(r.addr),
-      }));
-    }
-    renderLeaderboardTable(leaderboardCache);
+    // Always re-merge local staker (API cache may be empty of "you")
+    const merged = applyLocalStakerToLeaderboardData(leaderboardCache);
+    leaderboardCache = merged;
+    renderLeaderboardTable(merged);
     return;
   }
 
@@ -689,7 +710,8 @@ async function loadHoldersLeaderboard(force) {
     // Prefer backend (shared stake points + cached holders)
     if (apiOnline === null) await pingApi();
     if (apiOnline) {
-      const data = await loadLeaderboardFromApi(force);
+      let data = await loadLeaderboardFromApi(force);
+      data = applyLocalStakerToLeaderboardData(data);
       leaderboardCache = data;
       try { sessionStorage.setItem(LB_CACHE_KEY, JSON.stringify(data)); } catch { /* ignore */ }
       renderLeaderboardTable(data);
@@ -702,14 +724,25 @@ async function loadHoldersLeaderboard(force) {
       return;
     }
     if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="lb-empty">Scanning holders on-chain…</td></tr>';
-    const data = await buildHoldersMap();
+    let data = await buildHoldersMap();
     data.source = 'client';
+    data = applyLocalStakerToLeaderboardData(data);
     leaderboardCache = data;
     try { sessionStorage.setItem(LB_CACHE_KEY, JSON.stringify(data)); } catch { /* ignore */ }
     renderLeaderboardTable(data);
   } catch (err) {
     console.error(err);
-    if (tbody) {
+    // Last resort: still show connected wallet if they staked locally
+    const fallback = applyLocalStakerToLeaderboardData({
+      rows: [],
+      supply: 1000,
+      scannedAt: Date.now(),
+      source: 'local',
+    });
+    if (fallback.rows.length) {
+      leaderboardCache = fallback;
+      renderLeaderboardTable(fallback);
+    } else if (tbody) {
       tbody.innerHTML = `<tr><td colspan="4" class="lb-empty">${err?.message || 'Failed to load leaderboard.'}</td></tr>`;
     }
   } finally {

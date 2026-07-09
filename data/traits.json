@@ -1,16 +1,16 @@
 {
-  "total": 151,
+  "total": 171,
   "layerOrder": [
     "BACKGROUND",
     "BASE",
     "SKIN",
     "CLOTHES",
     "EYES",
-    "MOUTH",
-    "HEAD"
+    "HEAD",
+    "MOUTH"
   ],
   "defaults": {
-    "BACKGROUND": "Army",
+    "BACKGROUND": "Army Canvas",
     "BASE": "Moze",
     "SKIN": "Doll",
     "CLOTHES": "Baseball Green Jacket",
@@ -21,171 +21,251 @@
   "categories": [
     {
       "name": "BACKGROUND",
-      "count": 41,
+      "count": 61,
       "items": [
         {
-          "name": "Army",
-          "image": "assets/traits/BACKGROUND/Army.png"
+          "name": "Army Canvas",
+          "image": "assets/Traits/BACKGROUND/Army%20Canvas.png"
+        },
+        {
+          "name": "Ash Grey",
+          "image": "assets/Traits/BACKGROUND/Ash%20Grey.png"
         },
         {
           "name": "Blue",
-          "image": "assets/traits/BACKGROUND/Blue.png"
+          "image": "assets/Traits/BACKGROUND/Blue.png"
         },
         {
-          "name": "Bright Grey",
-          "image": "assets/traits/BACKGROUND/Bright%20Grey.png"
+          "name": "Blue Light",
+          "image": "assets/Traits/BACKGROUND/Blue%20Light.png"
         },
         {
-          "name": "Castile",
-          "image": "assets/traits/BACKGROUND/Castile.png"
+          "name": "Blushing Magenta",
+          "image": "assets/Traits/BACKGROUND/Blushing%20Magenta.png"
         },
         {
-          "name": "Cream",
-          "image": "assets/traits/BACKGROUND/Cream.png"
+          "name": "Bright Grey Canvas",
+          "image": "assets/Traits/BACKGROUND/Bright%20Grey%20Canvas.png"
         },
         {
-          "name": "Delusion",
-          "image": "assets/traits/BACKGROUND/Delusion.png"
+          "name": "Castile Canvas",
+          "image": "assets/Traits/BACKGROUND/Castile%20Canvas.png"
+        },
+        {
+          "name": "Concrete",
+          "image": "assets/Traits/BACKGROUND/Concrete.png"
+        },
+        {
+          "name": "Cream Canvas",
+          "image": "assets/Traits/BACKGROUND/Cream%20Canvas.png"
+        },
+        {
+          "name": "Cream Puff",
+          "image": "assets/Traits/BACKGROUND/Cream%20Puff.png"
+        },
+        {
+          "name": "Delusion Canvas",
+          "image": "assets/Traits/BACKGROUND/Delusion%20Canvas.png"
         },
         {
           "name": "Denim",
-          "image": "assets/traits/BACKGROUND/Denim.png"
+          "image": "assets/Traits/BACKGROUND/Denim.png"
         },
         {
-          "name": "Drift",
-          "image": "assets/traits/BACKGROUND/Drift.png"
+          "name": "Denim Canvas",
+          "image": "assets/Traits/BACKGROUND/Denim%20Canvas.png"
         },
         {
-          "name": "Dust",
-          "image": "assets/traits/BACKGROUND/Dust.png"
+          "name": "Exotic Moth",
+          "image": "assets/Traits/BACKGROUND/Exotic%20Moth.png"
         },
         {
-          "name": "Error Site",
-          "image": "assets/traits/BACKGROUND/Error%20Site.png"
+          "name": "Flaming Red",
+          "image": "assets/Traits/BACKGROUND/Flaming%20Red.png"
         },
         {
-          "name": "Grandpa Home#1",
-          "image": "assets/traits/BACKGROUND/Grandpa%20Home%231.png"
+          "name": "Grandpa Home Canvas",
+          "image": "assets/Traits/BACKGROUND/Grandpa%20Home%20Canvas.png"
         },
         {
           "name": "Green",
-          "image": "assets/traits/BACKGROUND/Green.png"
+          "image": "assets/Traits/BACKGROUND/Green.png"
+        },
+        {
+          "name": "Green Canvas",
+          "image": "assets/Traits/BACKGROUND/Green%20Canvas.png"
         },
         {
           "name": "Grey",
-          "image": "assets/traits/BACKGROUND/Grey.png"
+          "image": "assets/Traits/BACKGROUND/Grey.png"
         },
         {
-          "name": "Incident",
-          "image": "assets/traits/BACKGROUND/Incident.png"
+          "name": "Grey Canvas",
+          "image": "assets/Traits/BACKGROUND/Grey%20Canvas.png"
         },
         {
-          "name": "Jeans",
-          "image": "assets/traits/BACKGROUND/Jeans.png"
+          "name": "Incident Canvas",
+          "image": "assets/Traits/BACKGROUND/Incident%20Canvas.png"
         },
         {
-          "name": "Land",
-          "image": "assets/traits/BACKGROUND/Land.png"
+          "name": "Jeans Canvas",
+          "image": "assets/Traits/BACKGROUND/Jeans%20Canvas.png"
         },
         {
-          "name": "Lavender",
-          "image": "assets/traits/BACKGROUND/Lavender.png"
+          "name": "Land Canvas",
+          "image": "assets/Traits/BACKGROUND/Land%20Canvas.png"
         },
         {
-          "name": "Magic Eden",
-          "image": "assets/traits/BACKGROUND/Magic%20Eden.png"
+          "name": "Lavender Canvas",
+          "image": "assets/Traits/BACKGROUND/Lavender%20Canvas.png"
         },
         {
-          "name": "Matcha",
-          "image": "assets/traits/BACKGROUND/Matcha.png"
+          "name": "Lavender Haze",
+          "image": "assets/Traits/BACKGROUND/Lavender%20Haze.png"
         },
         {
-          "name": "Mickey Doll",
-          "image": "assets/traits/BACKGROUND/Mickey%20Doll.png"
+          "name": "Matcha Canvas",
+          "image": "assets/Traits/BACKGROUND/Matcha%20Canvas.png"
         },
         {
-          "name": "Ocean",
-          "image": "assets/traits/BACKGROUND/Ocean.png"
+          "name": "Mickey Doll Canvas",
+          "image": "assets/Traits/BACKGROUND/Mickey%20Doll%20Canvas.png"
         },
         {
-          "name": "Open Sea",
-          "image": "assets/traits/BACKGROUND/Open%20Sea.png"
+          "name": "Moss",
+          "image": "assets/Traits/BACKGROUND/Moss.png"
         },
         {
-          "name": "Orange",
-          "image": "assets/traits/BACKGROUND/Orange.png"
+          "name": "Mystic Mauve",
+          "image": "assets/Traits/BACKGROUND/Mystic%20Mauve.png"
         },
         {
-          "name": "Park",
-          "image": "assets/traits/BACKGROUND/Park.png"
+          "name": "Neon",
+          "image": "assets/Traits/BACKGROUND/Neon.png"
         },
         {
-          "name": "Playground",
-          "image": "assets/traits/BACKGROUND/Playground.png"
+          "name": "Ocean Canvas",
+          "image": "assets/Traits/BACKGROUND/Ocean%20Canvas.png"
         },
         {
-          "name": "Police",
-          "image": "assets/traits/BACKGROUND/Police.png"
+          "name": "Olive Jar",
+          "image": "assets/Traits/BACKGROUND/Olive%20Jar.png"
         },
         {
-          "name": "Rarible",
-          "image": "assets/traits/BACKGROUND/Rarible.png"
+          "name": "Orange Canvas",
+          "image": "assets/Traits/BACKGROUND/Orange%20Canvas.png"
+        },
+        {
+          "name": "Orange Peel",
+          "image": "assets/Traits/BACKGROUND/Orange%20Peel.png"
+        },
+        {
+          "name": "Park Canvas",
+          "image": "assets/Traits/BACKGROUND/Park%20Canvas.png"
+        },
+        {
+          "name": "Peppermint",
+          "image": "assets/Traits/BACKGROUND/Peppermint.png"
+        },
+        {
+          "name": "Pink",
+          "image": "assets/Traits/BACKGROUND/Pink.png"
+        },
+        {
+          "name": "Playground Canvas",
+          "image": "assets/Traits/BACKGROUND/Playground%20Canvas.png"
+        },
+        {
+          "name": "Police Canvas",
+          "image": "assets/Traits/BACKGROUND/Police%20Canvas.png"
+        },
+        {
+          "name": "Purple",
+          "image": "assets/Traits/BACKGROUND/Purple.png"
         },
         {
           "name": "Red",
-          "image": "assets/traits/BACKGROUND/Red.png"
+          "image": "assets/Traits/BACKGROUND/Red.png"
         },
         {
-          "name": "Salmon",
-          "image": "assets/traits/BACKGROUND/Salmon.png"
+          "name": "Red Canvas",
+          "image": "assets/Traits/BACKGROUND/Red%20Canvas.png"
         },
         {
-          "name": "Station",
-          "image": "assets/traits/BACKGROUND/Station.png"
+          "name": "Rose",
+          "image": "assets/Traits/BACKGROUND/Rose.png"
         },
         {
-          "name": "Strawberry",
-          "image": "assets/traits/BACKGROUND/Strawberry.png"
+          "name": "Salmon Canvas",
+          "image": "assets/Traits/BACKGROUND/Salmon%20Canvas.png"
         },
         {
-          "name": "Sunkist",
-          "image": "assets/traits/BACKGROUND/Sunkist.png"
+          "name": "Soba",
+          "image": "assets/Traits/BACKGROUND/Soba.png"
         },
         {
-          "name": "Sunset",
-          "image": "assets/traits/BACKGROUND/Sunset.png"
+          "name": "Sprout",
+          "image": "assets/Traits/BACKGROUND/Sprout.png"
+        },
+        {
+          "name": "Station Canvas",
+          "image": "assets/Traits/BACKGROUND/Station%20Canvas.png"
+        },
+        {
+          "name": "Strawberry Canvas",
+          "image": "assets/Traits/BACKGROUND/Strawberry%20Canvas.png"
+        },
+        {
+          "name": "Strawberry Milkshake",
+          "image": "assets/Traits/BACKGROUND/Strawberry%20Milkshake.png"
+        },
+        {
+          "name": "Sunkist Canvas",
+          "image": "assets/Traits/BACKGROUND/Sunkist%20Canvas.png"
+        },
+        {
+          "name": "Sunset Canvas",
+          "image": "assets/Traits/BACKGROUND/Sunset%20Canvas.png"
         },
         {
           "name": "Tan",
-          "image": "assets/traits/BACKGROUND/Tan.png"
+          "image": "assets/Traits/BACKGROUND/Tan.png"
         },
         {
-          "name": "Tosca",
-          "image": "assets/traits/BACKGROUND/Tosca.png"
+          "name": "Tan Canvas",
+          "image": "assets/Traits/BACKGROUND/Tan%20Canvas.png"
         },
         {
-          "name": "Vandal",
-          "image": "assets/traits/BACKGROUND/Vandal.png"
+          "name": "Tosca Canvas",
+          "image": "assets/Traits/BACKGROUND/Tosca%20Canvas.png"
         },
         {
-          "name": "Violet",
-          "image": "assets/traits/BACKGROUND/Violet.png"
+          "name": "Vandal Canvas",
+          "image": "assets/Traits/BACKGROUND/Vandal%20Canvas.png"
         },
         {
-          "name": "White",
-          "image": "assets/traits/BACKGROUND/White.png"
+          "name": "Violet Canvas",
+          "image": "assets/Traits/BACKGROUND/Violet%20Canvas.png"
         },
         {
-          "name": "Winter Season",
-          "image": "assets/traits/BACKGROUND/Winter%20Season.png"
+          "name": "Washed Denim",
+          "image": "assets/Traits/BACKGROUND/Washed%20Denim.png"
         },
         {
-          "name": "X",
-          "image": "assets/traits/BACKGROUND/X.png"
+          "name": "White Canvas",
+          "image": "assets/Traits/BACKGROUND/White%20Canvas.png"
+        },
+        {
+          "name": "Winter Season Canvas",
+          "image": "assets/Traits/BACKGROUND/Winter%20Season%20Canvas.png"
         },
         {
           "name": "Yellow",
-          "image": "assets/traits/BACKGROUND/Yellow.png"
+          "image": "assets/Traits/BACKGROUND/Yellow.png"
+        },
+        {
+          "name": "Yellow Canvas",
+          "image": "assets/Traits/BACKGROUND/Yellow%20Canvas.png"
         }
       ]
     },
@@ -195,7 +275,7 @@
       "items": [
         {
           "name": "Moze",
-          "image": "assets/traits/BASE/Moze.png"
+          "image": "assets/Traits/BASE/Moze.png"
         }
       ]
     },
@@ -205,35 +285,35 @@
       "items": [
         {
           "name": "Blank",
-          "image": "assets/traits/SKIN/Blank.png"
+          "image": "assets/Traits/SKIN/Blank.png"
         },
         {
           "name": "Doll",
-          "image": "assets/traits/SKIN/Doll.png"
+          "image": "assets/Traits/SKIN/Doll.png"
         },
         {
           "name": "Fire",
-          "image": "assets/traits/SKIN/Fire.png"
+          "image": "assets/Traits/SKIN/Fire.png"
         },
         {
           "name": "Hellheim Mark",
-          "image": "assets/traits/SKIN/Hellheim%20Mark.png"
+          "image": "assets/Traits/SKIN/Hellheim%20Mark.png"
         },
         {
           "name": "Ifrit Jambe",
-          "image": "assets/traits/SKIN/Ifrit%20Jambe.png"
+          "image": "assets/Traits/SKIN/Ifrit%20Jambe.png"
         },
         {
           "name": "Justin Bieber Flame",
-          "image": "assets/traits/SKIN/Justin%20Bieber%20Flame.png"
+          "image": "assets/Traits/SKIN/Justin%20Bieber%20Flame.png"
         },
         {
           "name": "Leopard",
-          "image": "assets/traits/SKIN/Leopard.png"
+          "image": "assets/Traits/SKIN/Leopard.png"
         },
         {
           "name": "Thunder",
-          "image": "assets/traits/SKIN/Thunder.png"
+          "image": "assets/Traits/SKIN/Thunder.png"
         }
       ]
     },
@@ -243,115 +323,115 @@
       "items": [
         {
           "name": "Baseball Green Jacket",
-          "image": "assets/traits/CLOTHES/Baseball%20Green%20Jacket.png"
+          "image": "assets/Traits/CLOTHES/Baseball%20Green%20Jacket.png"
         },
         {
           "name": "Baseball Suit",
-          "image": "assets/traits/CLOTHES/Baseball%20Suit.png"
+          "image": "assets/Traits/CLOTHES/Baseball%20Suit.png"
         },
         {
           "name": "Blank",
-          "image": "assets/traits/CLOTHES/Blank.png"
+          "image": "assets/Traits/CLOTHES/Blank.png"
         },
         {
           "name": "Blue Hoodie",
-          "image": "assets/traits/CLOTHES/Blue%20Hoodie.png"
+          "image": "assets/Traits/CLOTHES/Blue%20Hoodie.png"
         },
         {
           "name": "Boxer Glove",
-          "image": "assets/traits/CLOTHES/Boxer%20Glove.png"
+          "image": "assets/Traits/CLOTHES/Boxer%20Glove.png"
         },
         {
           "name": "Casual Blue Bear",
-          "image": "assets/traits/CLOTHES/Casual%20Blue%20Bear.png"
+          "image": "assets/Traits/CLOTHES/Casual%20Blue%20Bear.png"
         },
         {
           "name": "Designer Suit",
-          "image": "assets/traits/CLOTHES/Designer%20Suit.png"
+          "image": "assets/Traits/CLOTHES/Designer%20Suit.png"
         },
         {
           "name": "Dragon Custom",
-          "image": "assets/traits/CLOTHES/Dragon%20Custom.png"
+          "image": "assets/Traits/CLOTHES/Dragon%20Custom.png"
         },
         {
           "name": "Evil Mage Custom",
-          "image": "assets/traits/CLOTHES/Evil%20Mage%20Custom.png"
+          "image": "assets/Traits/CLOTHES/Evil%20Mage%20Custom.png"
         },
         {
           "name": "Graffiti Suit",
-          "image": "assets/traits/CLOTHES/Graffiti%20Suit.png"
+          "image": "assets/Traits/CLOTHES/Graffiti%20Suit.png"
         },
         {
           "name": "Gray Sweater",
-          "image": "assets/traits/CLOTHES/Gray%20Sweater.png"
+          "image": "assets/Traits/CLOTHES/Gray%20Sweater.png"
         },
         {
           "name": "Green Hoodie",
-          "image": "assets/traits/CLOTHES/Green%20Hoodie.png"
+          "image": "assets/Traits/CLOTHES/Green%20Hoodie.png"
         },
         {
           "name": "Hawaii Suit",
-          "image": "assets/traits/CLOTHES/Hawaii%20Suit.png"
+          "image": "assets/Traits/CLOTHES/Hawaii%20Suit.png"
         },
         {
           "name": "Jail Punisher Suit",
-          "image": "assets/traits/CLOTHES/Jail%20Punisher%20Suit.png"
+          "image": "assets/Traits/CLOTHES/Jail%20Punisher%20Suit.png"
         },
         {
           "name": "Mickey Bottom",
-          "image": "assets/traits/CLOTHES/Mickey%20Bottom.png"
+          "image": "assets/Traits/CLOTHES/Mickey%20Bottom.png"
         },
         {
           "name": "Nudist",
-          "image": "assets/traits/CLOTHES/Nudist.png"
+          "image": "assets/Traits/CLOTHES/Nudist.png"
         },
         {
           "name": "Pharaoh Mummy Custom",
-          "image": "assets/traits/CLOTHES/Pharaoh%20Mummy%20Custom.png"
+          "image": "assets/Traits/CLOTHES/Pharaoh%20Mummy%20Custom.png"
         },
         {
           "name": "Punk Jacket",
-          "image": "assets/traits/CLOTHES/Punk%20Jacket.png"
+          "image": "assets/Traits/CLOTHES/Punk%20Jacket.png"
         },
         {
           "name": "Robot Custom",
-          "image": "assets/traits/CLOTHES/Robot%20Custom.png"
+          "image": "assets/Traits/CLOTHES/Robot%20Custom.png"
         },
         {
           "name": "Soldier Suit AK4&",
-          "image": "assets/traits/CLOTHES/Soldier%20Suit%20AK4%26.png"
+          "image": "assets/Traits/CLOTHES/Soldier%20Suit%20AK4%26.png"
         },
         {
           "name": "Sphinx Necklace Final Boss",
-          "image": "assets/traits/CLOTHES/Sphinx%20Necklace%20Final%20Boss.png"
+          "image": "assets/Traits/CLOTHES/Sphinx%20Necklace%20Final%20Boss.png"
         },
         {
           "name": "Suit Up",
-          "image": "assets/traits/CLOTHES/Suit%20Up.png"
+          "image": "assets/Traits/CLOTHES/Suit%20Up.png"
         },
         {
           "name": "Swim Suit",
-          "image": "assets/traits/CLOTHES/Swim%20Suit.png"
+          "image": "assets/Traits/CLOTHES/Swim%20Suit.png"
         },
         {
           "name": "Thor Custom",
-          "image": "assets/traits/CLOTHES/Thor%20Custom.png"
+          "image": "assets/Traits/CLOTHES/Thor%20Custom.png"
         },
         {
           "name": "Tie",
-          "image": "assets/traits/CLOTHES/Tie.png"
+          "image": "assets/Traits/CLOTHES/Tie.png"
         },
         {
           "name": "White TShirt",
-          "image": "assets/traits/CLOTHES/White%20TShirt.png"
+          "image": "assets/Traits/CLOTHES/White%20TShirt.png"
         },
         {
           "name": "Worker Suit",
-          "image": "assets/traits/CLOTHES/Worker%20Suit.png"
+          "image": "assets/Traits/CLOTHES/Worker%20Suit.png"
         },
         {
           "name": "X-Rays Body",
-          "image": "assets/traits/CLOTHES/X-Rays%20Body.png"
+          "image": "assets/Traits/CLOTHES/X-Rays%20Body.png"
         }
       ]
     },
@@ -361,173 +441,91 @@
       "items": [
         {
           "name": "Amazed Eyes",
-          "image": "assets/traits/EYES/Amazed%20Eyes.png"
+          "image": "assets/Traits/EYES/Amazed%20Eyes.png"
         },
         {
           "name": "Anime Eyes",
-          "image": "assets/traits/EYES/Anime%20Eyes.png"
+          "image": "assets/Traits/EYES/Anime%20Eyes.png"
         },
         {
           "name": "Aura Glasses",
-          "image": "assets/traits/EYES/Aura%20Glasses.png"
+          "image": "assets/Traits/EYES/Aura%20Glasses.png"
         },
         {
           "name": "Beaten Eyes",
-          "image": "assets/traits/EYES/Beaten%20Eyes.png"
+          "image": "assets/Traits/EYES/Beaten%20Eyes.png"
         },
         {
           "name": "Blink Eyes",
-          "image": "assets/traits/EYES/Blink%20Eyes.png"
+          "image": "assets/Traits/EYES/Blink%20Eyes.png"
         },
         {
           "name": "Cool Sunglasses",
-          "image": "assets/traits/EYES/Cool%20Sunglasses.png"
+          "image": "assets/Traits/EYES/Cool%20Sunglasses.png"
         },
         {
           "name": "Cruel Eyes",
-          "image": "assets/traits/EYES/Cruel%20Eyes.png"
+          "image": "assets/Traits/EYES/Cruel%20Eyes.png"
         },
         {
           "name": "Dollar Eyes",
-          "image": "assets/traits/EYES/Dollar%20Eyes.png"
+          "image": "assets/Traits/EYES/Dollar%20Eyes.png"
         },
         {
           "name": "Double Eyes",
-          "image": "assets/traits/EYES/Double%20Eyes.png"
+          "image": "assets/Traits/EYES/Double%20Eyes.png"
         },
         {
           "name": "Happy Eyes",
-          "image": "assets/traits/EYES/Happy%20Eyes.png"
+          "image": "assets/Traits/EYES/Happy%20Eyes.png"
         },
         {
           "name": "Hunter Eyes",
-          "image": "assets/traits/EYES/Hunter%20Eyes.png"
+          "image": "assets/Traits/EYES/Hunter%20Eyes.png"
         },
         {
           "name": "Killer Eyes",
-          "image": "assets/traits/EYES/Killer%20Eyes.png"
+          "image": "assets/Traits/EYES/Killer%20Eyes.png"
         },
         {
           "name": "Laser Eyes",
-          "image": "assets/traits/EYES/Laser%20Eyes.png"
+          "image": "assets/Traits/EYES/Laser%20Eyes.png"
         },
         {
           "name": "Looking At Eyes",
-          "image": "assets/traits/EYES/Looking%20At%20Eyes.png"
+          "image": "assets/Traits/EYES/Looking%20At%20Eyes.png"
         },
         {
           "name": "Love Eyes",
-          "image": "assets/traits/EYES/Love%20Eyes.png"
+          "image": "assets/Traits/EYES/Love%20Eyes.png"
         },
         {
           "name": "Mummy Eyes",
-          "image": "assets/traits/EYES/Mummy%20Eyes.png"
+          "image": "assets/Traits/EYES/Mummy%20Eyes.png"
         },
         {
           "name": "Pink Sparkly Eyes",
-          "image": "assets/traits/EYES/Pink%20Sparkly%20Eyes.png"
+          "image": "assets/Traits/EYES/Pink%20Sparkly%20Eyes.png"
         },
         {
           "name": "Rockstar Eyes",
-          "image": "assets/traits/EYES/Rockstar%20Eyes.png"
+          "image": "assets/Traits/EYES/Rockstar%20Eyes.png"
         },
         {
           "name": "Spirally Googles",
-          "image": "assets/traits/EYES/Spirally%20Googles.png"
+          "image": "assets/Traits/EYES/Spirally%20Googles.png"
         },
         {
           "name": "Superstar Eyes",
-          "image": "assets/traits/EYES/Superstar%20Eyes.png"
+          "image": "assets/Traits/EYES/Superstar%20Eyes.png"
         },
         {
           "name": "Thinking Eyes",
-          "image": "assets/traits/EYES/Thinking%20Eyes.png"
+          "image": "assets/Traits/EYES/Thinking%20Eyes.png"
         },
         {
           "name": "X Eyes",
-          "image": "assets/traits/EYES/X%20Eyes.png"
-        }
-      ]
-    },
-    {
-      "name": "MOUTH",
-      "count": 19,
-      "items": [
-        {
-          "name": "Bandana Mouth Punk",
-          "image": "assets/traits/MOUTH/Bandana%20Mouth%20Punk.png"
-        },
-        {
-          "name": "Chill Mouth",
-          "image": "assets/traits/MOUTH/Chill%20Mouth.png"
-        },
-        {
-          "name": "Cigar Mouth",
-          "image": "assets/traits/MOUTH/Cigar%20Mouth.png"
-        },
-        {
-          "name": "Close Teeth",
-          "image": "assets/traits/MOUTH/Close%20Teeth.png"
-        },
-        {
-          "name": "Clown Mouth",
-          "image": "assets/traits/MOUTH/Clown%20Mouth.png"
-        },
-        {
-          "name": "Dragon Breath",
-          "image": "assets/traits/MOUTH/Dragon%20Breath.png"
-        },
-        {
-          "name": "Eat Pizza",
-          "image": "assets/traits/MOUTH/Eat%20Pizza.png"
-        },
-        {
-          "name": "Fresh Lips",
-          "image": "assets/traits/MOUTH/Fresh%20Lips.png"
-        },
-        {
-          "name": "Gold Teeth",
-          "image": "assets/traits/MOUTH/Gold%20Teeth.png"
-        },
-        {
-          "name": "Happy Mouth",
-          "image": "assets/traits/MOUTH/Happy%20Mouth.png"
-        },
-        {
-          "name": "Metal Long Tongue",
-          "image": "assets/traits/MOUTH/Metal%20Long%20Tongue.png"
-        },
-        {
-          "name": "Monsieur Cigs",
-          "image": "assets/traits/MOUTH/Monsieur%20Cigs.png"
-        },
-        {
-          "name": "Ninja Mask",
-          "image": "assets/traits/MOUTH/Ninja%20Mask.png"
-        },
-        {
-          "name": "Nyan Mouth",
-          "image": "assets/traits/MOUTH/Nyan%20Mouth.png"
-        },
-        {
-          "name": "Plaster Mouth Close",
-          "image": "assets/traits/MOUTH/Plaster%20Mouth%20Close.png"
-        },
-        {
-          "name": "Punk Mouth",
-          "image": "assets/traits/MOUTH/Punk%20Mouth.png"
-        },
-        {
-          "name": "Sad Mouth",
-          "image": "assets/traits/MOUTH/Sad%20Mouth.png"
-        },
-        {
-          "name": "Simple Smile Mouth",
-          "image": "assets/traits/MOUTH/Simple%20Smile%20Mouth.png"
-        },
-        {
-          "name": "Tongue Out",
-          "image": "assets/traits/MOUTH/Tongue%20Out.png"
+          "image": "assets/Traits/EYES/X%20Eyes.png"
         }
       ]
     },
@@ -537,131 +535,213 @@
       "items": [
         {
           "name": "Absolute King Crown",
-          "image": "assets/traits/HEAD/Absolute%20King%20Crown.png"
+          "image": "assets/Traits/HEAD/Absolute%20King%20Crown.png"
         },
         {
           "name": "Angel Wings Hair",
-          "image": "assets/traits/HEAD/Angel%20Wings%20Hair.png"
+          "image": "assets/Traits/HEAD/Angel%20Wings%20Hair.png"
         },
         {
           "name": "Blank#10",
-          "image": "assets/traits/HEAD/Blank%2310.png"
+          "image": "assets/Traits/HEAD/Blank%2310.png"
         },
         {
           "name": "Blue Hair",
-          "image": "assets/traits/HEAD/Blue%20Hair.png"
+          "image": "assets/Traits/HEAD/Blue%20Hair.png"
         },
         {
           "name": "Blue Pink Hair",
-          "image": "assets/traits/HEAD/Blue%20Pink%20Hair.png"
+          "image": "assets/Traits/HEAD/Blue%20Pink%20Hair.png"
         },
         {
           "name": "Blue Punk Hair",
-          "image": "assets/traits/HEAD/Blue%20Punk%20Hair.png"
+          "image": "assets/Traits/HEAD/Blue%20Punk%20Hair.png"
         },
         {
           "name": "Bubble Hat",
-          "image": "assets/traits/HEAD/Bubble%20Hat.png"
+          "image": "assets/Traits/HEAD/Bubble%20Hat.png"
         },
         {
           "name": "Checkerboard Ear",
-          "image": "assets/traits/HEAD/Checkerboard%20Ear.png"
-        },
-        {
-          "name": "Doctor Monkey Head Grafitti",
-          "image": "assets/traits/HEAD/Doctor%20Monkey%20Head%20Grafitti.png"
+          "image": "assets/Traits/HEAD/Checkerboard%20Ear.png"
         },
         {
           "name": "Doctor Monkey Head",
-          "image": "assets/traits/HEAD/Doctor%20Monkey%20Head.png"
+          "image": "assets/Traits/HEAD/Doctor%20Monkey%20Head.png"
+        },
+        {
+          "name": "Doctor Monkey Head Grafitti",
+          "image": "assets/Traits/HEAD/Doctor%20Monkey%20Head%20Grafitti.png"
         },
         {
           "name": "Duck Hat",
-          "image": "assets/traits/HEAD/Duck%20Hat.png"
+          "image": "assets/Traits/HEAD/Duck%20Hat.png"
         },
         {
           "name": "Ear Socks",
-          "image": "assets/traits/HEAD/Ear%20Socks.png"
+          "image": "assets/Traits/HEAD/Ear%20Socks.png"
         },
         {
           "name": "Gold Earring",
-          "image": "assets/traits/HEAD/Gold%20Earring.png"
+          "image": "assets/Traits/HEAD/Gold%20Earring.png"
         },
         {
           "name": "Graffiti Tattoo#1",
-          "image": "assets/traits/HEAD/Graffiti%20Tattoo%231.png"
+          "image": "assets/Traits/HEAD/Graffiti%20Tattoo%231.png"
         },
         {
           "name": "Green Ears",
-          "image": "assets/traits/HEAD/Green%20Ears.png"
+          "image": "assets/Traits/HEAD/Green%20Ears.png"
         },
         {
           "name": "Green Hat Flower",
-          "image": "assets/traits/HEAD/Green%20Hat%20Flower.png"
+          "image": "assets/Traits/HEAD/Green%20Hat%20Flower.png"
         },
         {
           "name": "Hellblaze Ears",
-          "image": "assets/traits/HEAD/Hellblaze%20Ears.png"
+          "image": "assets/Traits/HEAD/Hellblaze%20Ears.png"
         },
         {
           "name": "Horn Blue Devil",
-          "image": "assets/traits/HEAD/Horn%20Blue%20Devil.png"
+          "image": "assets/Traits/HEAD/Horn%20Blue%20Devil.png"
         },
         {
           "name": "Mcd Worker Cap",
-          "image": "assets/traits/HEAD/Mcd%20Worker%20Cap.png"
+          "image": "assets/Traits/HEAD/Mcd%20Worker%20Cap.png"
         },
         {
           "name": "Mohawk Hair",
-          "image": "assets/traits/HEAD/Mohawk%20Hair.png"
+          "image": "assets/Traits/HEAD/Mohawk%20Hair.png"
         },
         {
           "name": "Monkey King Headband",
-          "image": "assets/traits/HEAD/Monkey%20King%20Headband.png"
+          "image": "assets/Traits/HEAD/Monkey%20King%20Headband.png"
         },
         {
           "name": "Mullet Hair",
-          "image": "assets/traits/HEAD/Mullet%20Hair.png"
+          "image": "assets/Traits/HEAD/Mullet%20Hair.png"
         },
         {
           "name": "Mummy Hat",
-          "image": "assets/traits/HEAD/Mummy%20Hat.png"
+          "image": "assets/Traits/HEAD/Mummy%20Hat.png"
         },
         {
           "name": "Nihilsm",
-          "image": "assets/traits/HEAD/Nihilsm.png"
+          "image": "assets/Traits/HEAD/Nihilsm.png"
         },
         {
           "name": "Ninja Hair",
-          "image": "assets/traits/HEAD/Ninja%20Hair.png"
+          "image": "assets/Traits/HEAD/Ninja%20Hair.png"
         },
         {
           "name": "Party Hat",
-          "image": "assets/traits/HEAD/Party%20Hat.png"
+          "image": "assets/Traits/HEAD/Party%20Hat.png"
         },
         {
           "name": "Pink Blossom Hair",
-          "image": "assets/traits/HEAD/Pink%20Blossom%20Hair.png"
+          "image": "assets/Traits/HEAD/Pink%20Blossom%20Hair.png"
         },
         {
           "name": "Red Hair Hat",
-          "image": "assets/traits/HEAD/Red%20Hair%20Hat.png"
+          "image": "assets/Traits/HEAD/Red%20Hair%20Hat.png"
         },
         {
           "name": "Rubber Bracelet Hat",
-          "image": "assets/traits/HEAD/Rubber%20Bracelet%20Hat.png"
+          "image": "assets/Traits/HEAD/Rubber%20Bracelet%20Hat.png"
         },
         {
           "name": "Skull Checkerboard",
-          "image": "assets/traits/HEAD/Skull%20Checkerboard.png"
+          "image": "assets/Traits/HEAD/Skull%20Checkerboard.png"
         },
         {
           "name": "VR Glasses",
-          "image": "assets/traits/HEAD/VR%20Glasses.png"
+          "image": "assets/Traits/HEAD/VR%20Glasses.png"
         },
         {
           "name": "Yellow Fluffy Hat",
-          "image": "assets/traits/HEAD/Yellow%20Fluffy%20Hat.png"
+          "image": "assets/Traits/HEAD/Yellow%20Fluffy%20Hat.png"
+        }
+      ]
+    },
+    {
+      "name": "MOUTH",
+      "count": 19,
+      "items": [
+        {
+          "name": "Bandana Mouth Punk",
+          "image": "assets/Traits/MOUTH/Bandana%20Mouth%20Punk.png"
+        },
+        {
+          "name": "Chill Mouth",
+          "image": "assets/Traits/MOUTH/Chill%20Mouth.png"
+        },
+        {
+          "name": "Cigar Mouth",
+          "image": "assets/Traits/MOUTH/Cigar%20Mouth.png"
+        },
+        {
+          "name": "Close Teeth",
+          "image": "assets/Traits/MOUTH/Close%20Teeth.png"
+        },
+        {
+          "name": "Clown Mouth",
+          "image": "assets/Traits/MOUTH/Clown%20Mouth.png"
+        },
+        {
+          "name": "Dragon Breath",
+          "image": "assets/Traits/MOUTH/Dragon%20Breath.png"
+        },
+        {
+          "name": "Eat Pizza",
+          "image": "assets/Traits/MOUTH/Eat%20Pizza.png"
+        },
+        {
+          "name": "Fresh Lips",
+          "image": "assets/Traits/MOUTH/Fresh%20Lips.png"
+        },
+        {
+          "name": "Gold Teeth",
+          "image": "assets/Traits/MOUTH/Gold%20Teeth.png"
+        },
+        {
+          "name": "Happy Mouth",
+          "image": "assets/Traits/MOUTH/Happy%20Mouth.png"
+        },
+        {
+          "name": "Metal Long Tongue",
+          "image": "assets/Traits/MOUTH/Metal%20Long%20Tongue.png"
+        },
+        {
+          "name": "Monsieur Cigs",
+          "image": "assets/Traits/MOUTH/Monsieur%20Cigs.png"
+        },
+        {
+          "name": "Ninja Mask",
+          "image": "assets/Traits/MOUTH/Ninja%20Mask.png"
+        },
+        {
+          "name": "Nyan Mouth",
+          "image": "assets/Traits/MOUTH/Nyan%20Mouth.png"
+        },
+        {
+          "name": "Plaster Mouth Close",
+          "image": "assets/Traits/MOUTH/Plaster%20Mouth%20Close.png"
+        },
+        {
+          "name": "Punk Mouth",
+          "image": "assets/Traits/MOUTH/Punk%20Mouth.png"
+        },
+        {
+          "name": "Sad Mouth",
+          "image": "assets/Traits/MOUTH/Sad%20Mouth.png"
+        },
+        {
+          "name": "Simple Smile Mouth",
+          "image": "assets/Traits/MOUTH/Simple%20Smile%20Mouth.png"
+        },
+        {
+          "name": "Tongue Out",
+          "image": "assets/Traits/MOUTH/Tongue%20Out.png"
         }
       ]
     }

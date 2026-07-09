@@ -2,63 +2,58 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Moze</title>
-  <meta name="description" content="Moze — 1,000 hand-drawn street art PFPs. Free mint on Robinhood.">
+  <meta name="description" content="Moze. 1,000 street art PFPs. Free mint on Robinhood.">
   <meta property="og:title" content="Moze">
   <meta property="og:description" content="1,000 generative street art PFPs. Pure art. Free mint on Robinhood.">
-  <meta property="og:image" content="assets/collection/1.png">
+  <meta property="og:image" content="assets/Collection/1.webp?v=11">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:site" content="@mozenft_">
-  <link rel="icon" href="assets/profile.jpg" type="image/jpeg">
+  <link rel="icon" href="assets/ico.png" type="image/png">
   <meta name="theme-color" content="#5c1a2e">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=34">
 </head>
 <body>
 
   <div class="banner-top">
     <a href="https://opensea.io/collection/mozestreetart/overview" target="_blank" rel="noopener">
-      <img id="top-banner" src="assets/banner-1.png" alt="Moze Banner" class="banner-img">
+      <img id="top-banner" src="assets/banner.png?v=3" alt="Moze Banner" class="banner-img">
     </a>
   </div>
 
   <div class="page-wrap">
 
-    <div class="m_box">
+    <div class="m_box" id="collection">
       <div class="m_box_bar"><h2>Welcome to Moze!</h2></div>
       <p class="centered-text intro">
-        Moze is a collection of <strong>1,000</strong> hand-drawn street art PFPs.
-        Pure art — no AI, no roadmap. Free mint on Robinhood.
+        <strong>1,000</strong> street art PFPs. Free mint on <strong>Robinhood</strong>.
+        Rooted in street art, every trait drawn with care.
       </p>
-      <hr>
-      <p class="centered-text links">
-        <a href="https://x.com/mozenft_" target="_blank" rel="noopener">Moze Official Twitter</a>
-        |
-        <a href="https://x.com/artnesh" target="_blank" rel="noopener">Creator @artnesh</a>
-        |
-        <a href="https://opensea.io/collection/mozestreetart/overview" target="_blank" rel="noopener">OpenSea</a>
-      </p>
-    </div>
-
-    <div class="m_box" id="collection">
-      <div class="m_box_bar"><h2>Moze Collection</h2></div>
-      <p class="centered-text">Rooted in street art — every trait illustrated by hand.</p>
       <br>
       <img id="hero-img" src="assets/moze-hero.gif" alt="Moze collection preview" class="hero-img hero-gif">
       <p class="centered-text hero-caption">
         <strong id="hero-name">1,000 unique Moze</strong><br>
-        <span id="hero-trait">Hand-drawn street art PFPs</span>
+        <span id="hero-trait">Street art · free mint · Robinhood</span>
       </p>
-      <p class="centered-text">
-        <a href="https://opensea.io/collection/mozestreetart/overview" target="_blank" rel="noopener">
-          View and trade the Moze collection on OpenSea.
-        </a>
+      <p class="centered-text links">
+        <a href="https://opensea.io/collection/mozestreetart/overview" target="_blank" rel="noopener">OpenSea</a>
+        |
+        <a href="https://x.com/mozenft_" target="_blank" rel="noopener">@mozenft_</a>
+        |
+        <a href="/stake" id="nav-stake" data-go="stake">Stake now!</a>
       </p>
     </div>
 
     <div class="m_box" id="gallery">
       <div class="m_box_bar"><h2>Gallery</h2></div>
-      <p class="centered-text">Click any Moze to feature it above.</p>
+      <p class="centered-text">Search a token, or click any Moze for art + story.</p>
+      <form id="gallery-search-form" class="gallery-search" action="#" autocomplete="off">
+        <input type="search" id="gallery-search-input" placeholder="Search token # e.g. 261" inputmode="numeric">
+        <button type="submit" class="connect-button gallery-search-btn">Search</button>
+        <button type="button" id="gallery-clear" class="connect-button gallery-search-btn" hidden>Clear</button>
+      </form>
+      <p id="gallery-search-status" class="centered-text fine"></p>
       <div id="gallery-grid" class="gallery_container"></div>
     </div>
 
@@ -67,7 +62,7 @@
       <p class="centered-text">
         <span id="traits-desc">151 traits across 7 layers.</span> Mix traits and generate a brand new Moze.
       </p>
-      <div class="trait-lab">
+      <div class="trait-lab" id="trait-lab-body">
         <div class="composer-wrap">
           <div id="composer-canvas" class="composer-canvas">
             <div class="composer-empty">Generating…</div>
@@ -89,83 +84,148 @@
       <div class="m_box_bar"><h2>Trait Parallels</h2></div>
       <p>
         <strong>Moze Trait Parallels:</strong>
-        Hand-drawn traits inspired by pop culture, street art, and anime —
-        each layer references the culture you already know.
+        Traits born from street walls, classic cartoons, and pop culture icons.
+        Familiar faces, reworked for the block.
       </p>
       <hr>
 
       <div class="parallel-block">
         <p class="parallel-title"><strong>Donald Duck → Duck Hat</strong></p>
-        <img src="assets/compare-donald.png" alt="Donald Duck reference, Duck Hat trait, and Moze #54" class="compare-wide">
-        <p class="centered-text fine">
-          <a href="https://media.newyorker.com/photos/5cf81a2b78887298005c996a/master/w_2560%2Cc_limit/KidLit-DonaldDuck.jpg" target="_blank" rel="noopener">KidLit — Donald Duck</a>
-          · Trait: <strong>Duck Hat</strong> · <a href="https://opensea.io/collection/mozestreetart/overview" target="_blank" rel="noopener">Moze #54</a>
-        </p>
+        <img src="assets/compare-donald.jpg" alt="Donald Duck reference, Duck Hat trait, and Moze #54" class="compare-wide">
       </div>
 
-      <hr>
-
       <div class="parallel-block">
-        <p class="parallel-title"><strong>Naruto → Monkey King Headband</strong></p>
-        <img src="assets/compare-naruto.png" alt="Naruto reference, Monkey King Headband trait, and Moze #40" class="compare-wide">
-        <p class="centered-text fine">
-          <a href="https://cdng.europosters.eu/pod_public/1300/271342.jpg" target="_blank" rel="noopener">Naruto Poster</a>
-          · Trait: <strong>Monkey King Headband</strong> · <a href="https://opensea.io/collection/mozestreetart/overview" target="_blank" rel="noopener">Moze #40</a>
-        </p>
+        <p class="parallel-title"><strong>Naruto → Ninja Hair</strong></p>
+        <img src="assets/compare-naruto.jpg" alt="Naruto reference, Ninja Hair trait, and Moze #40" class="compare-wide">
       </div>
     </div>
 
-    <div class="m_box stake-box" id="stake">
-      <div class="m_box_bar"><h2>NFT Staking</h2></div>
+    <div class="m_box" id="stake">
+      <div class="m_box_bar"><h2>NFT Staking · $MOZE</h2></div>
       <p class="centered-text stake-soft">
-        Stake your <a href="https://opensea.io/collection/mozestreetart/overview" target="_blank" rel="noopener">Moze Street Art</a> NFTs on Robinhood. Soft rewards for holders.
+        Connect wallet → pilih Moze (atau stake semua) → kumpulin <strong>$MOZE</strong> tiap hari.
+        Soft rewards on <strong>Robinhood Chain</strong> ·
+        <a href="https://opensea.io/collection/mozestreetart/overview" target="_blank" rel="noopener">OpenSea</a>
       </p>
+      <div class="stake-panel">
+        <div class="stake-connect-row">
+          <button type="button" id="stake-connect" class="connect-button">Connect Wallet</button>
+          <button type="button" id="stake-wallet" class="addr-chip stake-wallet-chip" hidden data-addr="" title="Click to copy wallet">
+            <span class="addr-chip-text" id="stake-wallet-text"></span>
+            <span class="addr-chip-action">Copy</span>
+          </button>
+        </div>
+        <p id="stake-status" class="centered-text fine stake-status"></p>
 
-      <div class="stake-dashboard">
-        <div class="stake-top">
-          <div class="stake-meta">
-            <div class="stake-stat">
-              <span class="stake-stat-label">Owned</span>
-              <strong id="stake-owned-count">—</strong>
-            </div>
+        <div id="stake-gated" class="stake-gated" hidden>
+          <div id="stake-dashboard" class="stake-dashboard">
             <div class="stake-stat">
               <span class="stake-stat-label">Staked</span>
-              <strong id="stake-staked-count">0</strong>
+              <strong id="stat-staked" class="slot-num" data-slot="0">0</strong>
+              <span class="stake-stat-unit">NFT</span>
             </div>
             <div class="stake-stat">
-              <span class="stake-stat-label">Chain</span>
-              <strong>Robinhood</strong>
+              <span class="stake-stat-label">Rate</span>
+              <strong id="stat-rate" class="slot-num" data-slot="0">0</strong>
+              <span class="stake-stat-unit">$MOZE / day</span>
+            </div>
+            <div class="stake-stat highlight">
+              <span class="stake-stat-label">Pending</span>
+              <strong id="stat-pending" class="slot-num" data-slot="0">0</strong>
+              <span class="stake-stat-unit">$MOZE</span>
+            </div>
+            <div class="stake-stat">
+              <span class="stake-stat-label">Claimed</span>
+              <strong id="stat-claimed" class="slot-num" data-slot="0">0</strong>
+              <span class="stake-stat-unit">$MOZE</span>
             </div>
           </div>
-          <button type="button" id="connect-wallet" class="connect-button stake-connect">Connect Wallet</button>
+
+          <div id="stake-toolbar" class="stake-toolbar">
+            <button type="button" id="stake-select-all" class="connect-button stake-btn-sm">Select all</button>
+            <button type="button" id="stake-all" class="connect-button stake-btn-sm">Stake all</button>
+            <button type="button" id="unstake-all" class="connect-button stake-btn-sm">Unstake all</button>
+            <button type="button" id="claim-moze" class="connect-button stake-btn-sm stake-claim">Claim $MOZE</button>
+          </div>
+
+          <div id="stake-owned" class="stake-coverflow">
+            <button type="button" class="cf-nav cf-prev" id="stake-cf-prev" aria-label="Previous">‹</button>
+            <div class="cf-stage" id="stake-cf-stage"></div>
+            <button type="button" class="cf-nav cf-next" id="stake-cf-next" aria-label="Next">›</button>
+            <div class="cf-share-bar" id="stake-cf-share">
+              <button type="button" id="stake-img-copy" class="connect-button stake-btn-sm">Copy image</button>
+              <button type="button" id="stake-img-download" class="connect-button stake-btn-sm">Download</button>
+              <button type="button" id="stake-img-share-x" class="connect-button stake-btn-sm stake-claim">Share on X</button>
+            </div>
+            <p id="stake-img-status" class="cf-hint fine centered-text"></p>
+            <p class="cf-hint fine centered-text">Klik kartu = pilih · panah / swipe ganti NFT</p>
+          </div>
+
+          <div class="stake-actions" id="stake-actions">
+            <button type="button" id="stake-selected" class="connect-button" disabled>Stake selected</button>
+            <button type="button" id="unstake-selected" class="connect-button" disabled>Unstake selected</button>
+          </div>
+
+          <div id="stake-details" class="stake-details">
+            <p><strong>Detail $MOZE</strong></p>
+            <ul>
+              <li><strong>10 $MOZE</strong> / NFT / hari (selama di-stake)</li>
+              <li>Poin dihitung per detik · claim kapan aja</li>
+              <li>Stake all = stake semua Moze di wallet</li>
+              <li>Unstake stop rate · pending tetap bisa di-claim</li>
+              <li>Soft rewards (client-side) · on-chain staking menyusul</li>
+            </ul>
+            <div class="addr-chip-row">
+              <span class="addr-chip-label">Contract</span>
+              <button type="button" class="addr-chip" id="stake-ca-copy" data-addr="0x0e579bcec21ae9dc5400db46cab67d5a8d0a58cc" title="Click to copy">
+                <span class="addr-chip-text">0x0e57…58cc</span>
+                <span class="addr-chip-action" aria-hidden="true">Copy</span>
+              </button>
+            </div>
+          </div>
         </div>
+      </div>
+    </div>
 
-        <p id="wallet-status" class="wallet-status centered-text">Connect wallet to load your Moze vault</p>
-
-        <div class="stake-vault">
-          <div class="stake-preview-panel">
-            <div class="stake-preview-frame">
-              <img id="stake-preview-img" src="assets/collection/54.png" alt="Moze preview" class="stake-preview-img">
-            </div>
-            <div class="stake-preview-info">
-              <strong id="stake-preview-name">Moze Vault</strong>
-              <span id="stake-preview-detail" class="fine">Select a Moze below to preview</span>
-            </div>
+    <div class="m_box" id="leaderboard">
+      <div class="m_box_bar"><h2>Holders Leaderboard</h2></div>
+      <p class="centered-text">
+        Top Moze holders on Robinhood. Visible to holders only.
+      </p>
+      <p class="centered-text fine" id="lb-gate-note">Holders only · connect wallet + hold / stake Moze.</p>
+      <div class="lb-shell locked" id="lb-shell">
+        <div class="lb-body" id="lb-body" aria-hidden="true">
+          <div class="lb-toolbar">
+            <button type="button" id="lb-refresh" class="connect-button stake-btn-sm">Refresh</button>
+            <span id="lb-meta" class="fine"></span>
           </div>
-          <div id="stake-nft-grid" class="stake-nft-grid">
-            <div class="stake-nft-empty">Your Moze NFTs will appear here after connecting wallet.</div>
+          <div class="lb-table-wrap">
+            <table class="lb-table" id="lb-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Wallet</th>
+                  <th>Held</th>
+                  <th>$MOZE staked*</th>
+                </tr>
+              </thead>
+              <tbody id="lb-tbody">
+                <tr><td colspan="4" class="lb-empty">Connect to load…</td></tr>
+              </tbody>
+            </table>
           </div>
+          <p class="fine lb-footnote">* Soft stake on this device only. Held = on-chain Moze count.</p>
         </div>
-
-        <div class="stake-bottom">
-          <div class="stake-contract-row">
-            <span>Staking Contract</span>
-            <code id="stake-contract" class="stake-addr">0x0e579bcec21ae9dc5400db46cab67d5a8d0a58cc</code>
-            <button type="button" class="copy-btn" data-copy="0x0e579bcec21ae9dc5400db46cab67d5a8d0a58cc">copy</button>
-          </div>
-          <div class="stake-action-row">
-            <button type="button" id="stake-btn" class="connect-button stake-btn" disabled>Stake Selected</button>
-            <button type="button" id="unstake-btn" class="connect-button unstake-btn" disabled>Unstake</button>
+        <div class="lb-lock" id="lb-lock">
+          <div class="trait-lock-card">
+            <div class="trait-lock-chains" aria-hidden="true">⛓ ⛓ ⛓</div>
+            <p class="trait-lock-title">Locked</p>
+            <p class="trait-lock-copy">
+              Leaderboard cuma buat holder. Connect wallet di Robinhood
+              dan pastikan lo hold / stake Moze.
+            </p>
+            <button type="button" id="lb-connect" class="connect-button">Connect Wallet</button>
+            <p id="lb-lock-status" class="fine trait-lock-status"></p>
           </div>
         </div>
       </div>
@@ -173,7 +233,7 @@
 
     <div class="m_box" id="whitelist">
       <div class="m_box_bar"><h2>Whitelist Check</h2></div>
-      <p class="centered-text">3,065 wallets are whitelisted for the free mint.</p>
+      <p class="centered-text">Check your wallet to mint for free.</p>
       <div class="mint-box">
         <form id="wl-form" class="wl-form">
           <input type="text" id="wallet-input" placeholder="Paste wallet address (0x...)" autocomplete="off" spellcheck="false">
@@ -184,48 +244,63 @@
           <span id="wl-detail"></span>
         </div>
       </div>
+      <hr>
+      <p class="centered-text">Here's the eligible collection.</p>
+      <img src="assets/whitelist.jpg" alt="Eligible Moze collection for the whitelist" class="whitelist-img">
     </div>
 
     <div class="m_box_red" id="mint">
-      <div class="m_box_bar_red"><h2>Mint — Coming Soon</h2></div>
-      <div class="mint-box">
-        <p class="centered-text amount-minted">
-          Supply: <span class="current-supply">1,000</span> · Price: <strong>FREE</strong>
-        </p>
-        <ul class="mint-details">
-          <li>Collection: <strong>Moze Street Art</strong></li>
-          <li>Chain: <strong>Robinhood</strong></li>
-          <li>Platform: <strong>Robinhood App</strong></li>
-          <li>Traits: <strong id="trait-total">151</strong> unique · <strong>3,065</strong> whitelisted</li>
-        </ul>
-        <p class="centered-text mint-reserve-button">
-          <a href="https://x.com/mozenft_" target="_blank" rel="noopener">Drop wallet on X for WL →</a>
-        </p>
+      <div class="m_box_bar_red"><h2>Mint</h2></div>
+      <div class="mint-with-avatar">
+        <img src="assets/profile.jpg" alt="Moze profile" class="mint-avatar">
+        <div class="mint-info">
+          <p class="amount-minted">
+            Supply: <strong id="mint-minted">—</strong> / <span class="current-supply">1,000</span> · Price: <strong>FREE</strong>
+          </p>
+          <ul class="mint-details">
+            <li>Collection: <strong>Moze Street Art</strong></li>
+            <li>Chain: <strong>Robinhood</strong></li>
+            <li>Platform: <strong>OpenSea</strong></li>
+            <li>Holders: <strong id="mint-holders">—</strong> unique</li>
+            <li>Floor / Offer: <strong id="mint-offer">—</strong></li>
+            <li>Volume: <strong id="mint-volume">—</strong> <span class="fine">(all)</span></li>
+            <li>Sales: <strong id="mint-sales">—</strong></li>
+            <li>Listed: <strong id="mint-listed">—</strong></li>
+            <li>Staked: <strong id="mint-staked">—</strong></li>
+          </ul>
+          <p class="mint-reserve-button">
+            <a href="https://opensea.io/collection/mozestreetart/overview" target="_blank" rel="noopener">Mint / trade on OpenSea →</a>
+          </p>
+        </div>
       </div>
-    </div>
-
-    <div class="m_box_red">
-      <div class="m_box_bar_red"><h2>About Moze</h2></div>
-      <p class="centered-text">
-        Moze is a street art PFP project by
-        <a href="https://x.com/artnesh" target="_blank" rel="noopener">@artnesh</a> —
-        NFT artist & dev since 2019, creator of
-        <a href="https://generatemynft.fun" target="_blank" rel="noopener">generatemynft.fun</a>.
-      </p>
-      <hr>
-      <p class="centered-text links">
-        <a href="https://x.com/mozenft_" target="_blank" rel="noopener">@mozenft_</a>
-        |
-        <a href="https://x.com/artnesh" target="_blank" rel="noopener">@artnesh</a>
-        |
-        <a href="https://opensea.io/collection/mozestreetart/overview" target="_blank" rel="noopener">OpenSea</a>
-      </p>
-      <hr>
-      <p class="centered-text fine">Moze © 2026 — Pure art. No AI. No roadmap.</p>
     </div>
 
   </div>
 
-  <script src="script.js"></script>
+  <footer class="site-footer">
+    <p class="footer-about">Moze is a street art PFP project on Robinhood chain.</p>
+    <p class="footer-links">
+      <a href="https://x.com/mozenft_" target="_blank" rel="noopener">Twitter / X</a>
+      <span aria-hidden="true">·</span>
+      <a href="https://opensea.io/collection/mozestreetart/overview" target="_blank" rel="noopener">OpenSea</a>
+    </p>
+    <p class="footer-fine">Moze © 2026 — Pure art.</p>
+  </footer>
+
+  <div id="lightbox" class="lightbox" hidden>
+    <button type="button" id="lightbox-close" class="lightbox-close" aria-label="Close">&times;</button>
+    <div class="lightbox-panel">
+      <div class="lightbox-art">
+        <img id="lightbox-img" src="" alt="">
+      </div>
+      <div class="lightbox-side">
+        <p id="lightbox-caption" class="lightbox-caption"></p>
+        <div id="lightbox-story" class="lightbox-story" hidden></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js"></script>
+  <script src="script.js?v=34"></script>
 </body>
 </html>

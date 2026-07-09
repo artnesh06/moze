@@ -31,7 +31,7 @@ def main() -> None:
             item = {
                 "id": token_id,
                 "name": row["name"],
-                "image": f"assets/collection/{row['file_name']}",
+                "image": f"assets/Collection/{token_id}.webp",
             }
             for key in LAYER_KEYS:
                 item[key] = row.get(f"attributes[{key}]", "")

@@ -1,0 +1,19 @@
+{
+  "updated_at": "2026-07-09T18:36:51Z",
+  "supply_max": 1000,
+  "minted": 764,
+  "price": "FREE",
+  "collection": "Moze Street Art",
+  "chain": "Robinhood",
+  "platform": "OpenSea",
+  "holders": 763,
+  "offer": "0.00144 ETH",
+  "floor_eth": 0.00144,
+  "volume_all": "0 ETH",
+  "volume_all_eth": 0.0,
+  "sales": 763,
+  "listed": null,
+  "opensea_url": "https://opensea.io/collection/mozestreetart/overview",
+  "source": "opensea-api-v2+rpc",
+  "note": "offer = OpenSea floor price; listed count needs OpenSea API key"
+}

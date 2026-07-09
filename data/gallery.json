@@ -2,7 +2,7 @@
   {
     "id": 1,
     "name": "Moze #1",
-    "image": "collection/1.png",
+    "image": "Collection/1.webp",
     "background": "Army",
     "skin": "Doll",
     "head": "Blank#10"
@@ -10,7 +10,7 @@
   {
     "id": 5,
     "name": "Moze #5",
-    "image": "collection/5.png",
+    "image": "Collection/5.webp",
     "background": "Park",
     "skin": "Hellheim Mark",
     "head": "Mullet Hair"
@@ -18,7 +18,7 @@
   {
     "id": 12,
     "name": "Moze #12",
-    "image": "collection/12.png",
+    "image": "Collection/12.webp",
     "background": "Grandpa Home",
     "skin": "Fire",
     "head": "Mcd Worker Cap"
@@ -26,7 +26,7 @@
   {
     "id": 42,
     "name": "Moze #42",
-    "image": "collection/42.png",
+    "image": "Collection/42.webp",
     "background": "Sunset",
     "skin": "Blank",
     "head": "Rubber Bracelet Hat"
@@ -34,7 +34,7 @@
   {
     "id": 77,
     "name": "Moze #77",
-    "image": "collection/77.png",
+    "image": "Collection/77.webp",
     "background": "Strawberry",
     "skin": "Blank",
     "head": "Horn Blue Devil"
@@ -42,7 +42,7 @@
   {
     "id": 100,
     "name": "Moze #100",
-    "image": "collection/100.png",
+    "image": "Collection/100.webp",
     "background": "Station",
     "skin": "Blank",
     "head": "Graffiti Tattoo#1"
@@ -50,7 +50,7 @@
   {
     "id": 156,
     "name": "Moze #156",
-    "image": "collection/156.png",
+    "image": "Collection/156.webp",
     "background": "Winter Season",
     "skin": "Thunder",
     "head": "Blue Pink Hair"
@@ -58,7 +58,7 @@
   {
     "id": 234,
     "name": "Moze #234",
-    "image": "collection/234.png",
+    "image": "Collection/234.webp",
     "background": "Jeans",
     "skin": "Justin Bieber Flame",
     "head": "Duck Hat"
@@ -66,7 +66,7 @@
   {
     "id": 333,
     "name": "Moze #333",
-    "image": "collection/333.png",
+    "image": "Collection/333.webp",
     "background": "Castile",
     "skin": "Fire",
     "head": "Mummy Hat"
@@ -74,7 +74,7 @@
   {
     "id": 420,
     "name": "Moze #420",
-    "image": "collection/420.png",
+    "image": "Collection/420.webp",
     "background": "Grey",
     "skin": "Justin Bieber Flame",
     "head": "Ear Socks"
@@ -82,7 +82,7 @@
   {
     "id": 500,
     "name": "Moze #500",
-    "image": "collection/500.png",
+    "image": "Collection/500.webp",
     "background": "Sunkist",
     "skin": "Thunder",
     "head": "Skull Checkerboard"
@@ -90,7 +90,7 @@
   {
     "id": 666,
     "name": "Moze #666",
-    "image": "collection/666.png",
+    "image": "Collection/666.webp",
     "background": "Violet",
     "skin": "Fire",
     "head": "Party Hat"
@@ -98,7 +98,7 @@
   {
     "id": 777,
     "name": "Moze #777",
-    "image": "collection/777.png",
+    "image": "Collection/777.webp",
     "background": "Green",
     "skin": "Ifrit Jambe",
     "head": "Green Ears"
@@ -106,7 +106,7 @@
   {
     "id": 888,
     "name": "Moze #888",
-    "image": "collection/888.png",
+    "image": "Collection/888.webp",
     "background": "Error Site",
     "skin": "Doll",
     "head": "Duck Hat"
@@ -114,7 +114,7 @@
   {
     "id": 999,
     "name": "Moze #999",
-    "image": "collection/999.png",
+    "image": "Collection/999.webp",
     "background": "Bright Grey",
     "skin": "Blank",
     "head": "Mullet Hair"
@@ -122,7 +122,7 @@
   {
     "id": 1000,
     "name": "Moze #1000",
-    "image": "collection/1000.png",
+    "image": "Collection/1000.webp",
     "background": "Incident",
     "skin": "Thunder",
     "head": "Gold Earring"

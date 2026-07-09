@@ -9,6 +9,15 @@ __pycache__/
 *.credentials
 credentials.local
 secrets.*
+
+# IDE / local
+.claude/
+.idea/
+.vscode/
+
+# Huge regen outputs (site uses assets/Collection webp)
+generated/images/
+generated/json/
 generated/*.png
 !generated/.gitkeep
 
@@ -17,4 +26,7 @@ MOZE/
 source/launchpad-original/
 *.psd
 *.zip
-*.webp
+
+# keep site webp (Collection gallery) — do NOT ignore assets/**/*.webp
+# only ignore stray webp at repo root if any
+/*.webp

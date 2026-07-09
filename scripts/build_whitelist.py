@@ -8,7 +8,14 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = ROOT / "source" / "moze snapshot.csv"
+# Prefer project-root snapshot, then data/, then source/
+_CANDIDATES = [
+    ROOT / "moze snapshot.csv",
+    ROOT / "data" / "moze-snapshot.csv",
+    ROOT / "source" / "moze snapshot.csv",
+    ROOT / "MOZE" / "moze snapshot.csv",
+]
+SOURCE = next((p for p in _CANDIDATES if p.exists()), _CANDIDATES[0])
 OUTPUT = ROOT / "data" / "whitelist.json"
 
 

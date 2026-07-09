@@ -1,0 +1,15 @@
+.git
+.venv
+.claude
+**/__pycache__
+**/.DS_Store
+generated
+scripts
+source
+MOZE
+*.md
+.env
+.env.*
+.gitignore
+start.sh
+requirements.txt

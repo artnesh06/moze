@@ -442,12 +442,24 @@ async function loadLeaderboardFromApi(force) {
   const sourceRows = Array.isArray(data.rows) && data.rows.length
     ? data.rows
     : (data.top || []);
-  return {
-    rows: sourceRows.map((r) => ({
+  // Stakers only (backend filters; keep client guard)
+  const rows = sourceRows
+    .map((r) => ({
       addr: r.addr,
       held: r.held,
+      staked: Number(r.staked) || 0,
       softMoze: Number(r.softMoze) || 0,
-    })),
+    }))
+    .filter((r) => r.staked > 0 || r.softMoze > 0)
+    .sort(
+      (a, b) =>
+        b.softMoze - a.softMoze ||
+        b.staked - a.staked ||
+        b.held - a.held ||
+        a.addr.localeCompare(b.addr)
+    );
+  return {
+    rows,
     supply: data.supply || 1000,
     scannedAt: data.updatedAt || Date.now(),
     source: 'api',
@@ -504,7 +516,7 @@ function initTraits() {
   syncLeaderboardVisibility();
 }
 
-const LB_CACHE_KEY = 'moze-holders-lb-v1';
+const LB_CACHE_KEY = 'moze-stakers-lb-v2';
 const LB_CACHE_TTL = 5 * 60 * 1000; // 5 min
 const LB_TOP_N = 25;
 
@@ -552,13 +564,15 @@ async function buildHoldersMap() {
     }
   } catch { /* no token 0 */ }
 
+  // Client fallback: stakers only (soft points from local stake state)
   const rows = [...counts.entries()]
     .map(([addr, held]) => ({
       addr,
       held,
       softMoze: softStakePointsFor(addr),
     }))
-    .sort((a, b) => b.held - a.held || b.softMoze - a.softMoze || a.addr.localeCompare(b.addr));
+    .filter((r) => r.softMoze > 0)
+    .sort((a, b) => b.softMoze - a.softMoze || b.held - a.held || a.addr.localeCompare(b.addr));
 
   return { rows, supply, scannedAt: Date.now() };
 }
@@ -568,14 +582,16 @@ function renderLeaderboardTable(data) {
   const meta = document.getElementById('lb-meta');
   if (!tbody) return;
   const you = (stakeAccount || '').toLowerCase();
-  const top = data.rows.slice(0, LB_TOP_N);
+  // Extra guard: never show non-stakers
+  const stakers = (data.rows || []).filter((r) => (Number(r.softMoze) || 0) > 0 || (Number(r.staked) || 0) > 0);
+  const top = stakers.slice(0, LB_TOP_N);
   if (!top.length) {
-    tbody.innerHTML = '<tr><td colspan="4" class="lb-empty">No holders found yet.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" class="lb-empty">No stakers yet — be the first.</td></tr>';
     return;
   }
   tbody.innerHTML = top.map((row, i) => {
     const isYou = you && row.addr === you;
-    const soft = row.softMoze > 0 ? formatMoze(row.softMoze) : '—';
+    const soft = row.softMoze > 0 ? formatMoze(row.softMoze) : '0';
     return (
       `<tr class="${isYou ? 'lb-you' : ''}">` +
       `<td class="lb-rank">${i + 1}</td>` +
@@ -586,12 +602,12 @@ function renderLeaderboardTable(data) {
     );
   }).join('');
 
-  // If you're a holder but outside top N, append your row
+  // If you're a staker but outside top N, append your row
   if (you) {
-    const yourIdx = data.rows.findIndex((r) => r.addr === you);
+    const yourIdx = stakers.findIndex((r) => r.addr === you);
     if (yourIdx >= LB_TOP_N) {
-      const row = data.rows[yourIdx];
-      const soft = row.softMoze > 0 ? formatMoze(row.softMoze) : '—';
+      const row = stakers[yourIdx];
+      const soft = row.softMoze > 0 ? formatMoze(row.softMoze) : '0';
       tbody.innerHTML += (
         `<tr class="lb-you">` +
         `<td class="lb-rank">${yourIdx + 1}</td>` +
@@ -605,7 +621,7 @@ function renderLeaderboardTable(data) {
 
   if (meta) {
     const when = new Date(data.scannedAt).toLocaleTimeString();
-    meta.textContent = `Top ${Math.min(LB_TOP_N, data.rows.length)} · ${data.rows.length} wallets · supply ~${data.supply} · ${when}`;
+    meta.textContent = `Top ${Math.min(LB_TOP_N, stakers.length)} stakers · ${stakers.length} total · ${when}`;
   }
 }
 
@@ -651,10 +667,6 @@ async function loadHoldersLeaderboard(force) {
       leaderboardCache = data;
       try { sessionStorage.setItem(LB_CACHE_KEY, JSON.stringify(data)); } catch { /* ignore */ }
       renderLeaderboardTable(data);
-      if (meta) {
-        const when = new Date(data.scannedAt).toLocaleTimeString();
-        meta.textContent = `API · top ${Math.min(LB_TOP_N, data.rows.length)} · ~${data.supply} supply · ${when}`;
-      }
       return;
     }
 

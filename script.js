@@ -325,6 +325,132 @@ let leaderboardVisible = false;
 let leaderboardCache = null;
 let leaderboardLoading = false;
 
+/* ── moze-api (separate backend) ── */
+// Production: https://api.mozestreet.art
+// Local override: localStorage.setItem('moze-api','http://localhost:3000') or window.MOZE_API
+const API_BASE = String(
+  (typeof window !== 'undefined' && window.MOZE_API) ||
+  (typeof localStorage !== 'undefined' && localStorage.getItem('moze-api')) ||
+  'https://api.mozestreet.art'
+).replace(/\/$/, '');
+
+let apiOnline = null; // null unknown, true/false
+
+async function apiFetch(path, options = {}) {
+  const url = `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`;
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      Accept: 'application/json',
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(options.headers || {}),
+    },
+  });
+  const text = await res.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch { data = { raw: text }; }
+  if (!res.ok) {
+    const err = new Error(data?.error || res.statusText || 'API error');
+    err.status = res.status;
+    err.data = data;
+    throw err;
+  }
+  return data;
+}
+
+async function pingApi() {
+  try {
+    const h = await apiFetch('/health');
+    apiOnline = !!(h && h.ok);
+  } catch {
+    apiOnline = false;
+  }
+  return apiOnline;
+}
+
+function buildMozeActionMessage({ action, address, tokenIds, nonce, timestamp }) {
+  const tokens = (tokenIds || []).map(Number).sort((a, b) => a - b).join(',');
+  return [
+    'Moze Staking',
+    `Action: ${action}`,
+    `Tokens: ${tokens || '-'}`,
+    `Address: ${String(address).toLowerCase()}`,
+    `Nonce: ${nonce}`,
+    `Timestamp: ${timestamp}`,
+  ].join('\n');
+}
+
+/** Sign + POST stake/unstake/claim to backend. Best-effort; does not throw to UI. */
+async function apiSignedAction(action, tokenIds = []) {
+  if (!stakeAccount) return null;
+  if (apiOnline === false) return null;
+  try {
+    if (apiOnline === null) await pingApi();
+    if (!apiOnline) return null;
+
+    const address = String(stakeAccount).toLowerCase();
+    const ids = (tokenIds || []).map(Number);
+    const nonceRes = await apiFetch('/v1/auth/nonce', {
+      method: 'POST',
+      body: JSON.stringify({ address }),
+    });
+    const nonce = nonceRes.nonce;
+    const timestamp = Date.now();
+    const message = buildMozeActionMessage({
+      action,
+      address,
+      tokenIds: action === 'claim' ? [] : ids,
+      nonce,
+      timestamp,
+    });
+
+    const eth = getEthereum();
+    if (!eth) throw new Error('No wallet');
+    const provider = new ethers.BrowserProvider(eth);
+    const signer = await provider.getSigner();
+    const signature = await signer.signMessage(message);
+
+    const path =
+      action === 'stake' ? '/v1/stake' :
+      action === 'unstake' ? '/v1/unstake' :
+      '/v1/claim';
+
+    const body = {
+      address,
+      tokenIds: action === 'claim' ? [] : ids,
+      nonce,
+      timestamp,
+      signature,
+    };
+    return await apiFetch(path, { method: 'POST', body: JSON.stringify(body) });
+  } catch (err) {
+    console.warn('[moze-api]', action, err?.message || err);
+    return { error: err?.message || String(err) };
+  }
+}
+
+async function loadLeaderboardFromApi(force) {
+  const you = stakeAccount ? String(stakeAccount).toLowerCase() : '';
+  const q = new URLSearchParams();
+  q.set('top', String(LB_TOP_N));
+  if (you) q.set('you', you);
+  if (force) q.set('force', '1');
+  const data = await apiFetch(`/v1/leaderboard?${q}`);
+  const sourceRows = Array.isArray(data.rows) && data.rows.length
+    ? data.rows
+    : (data.top || []);
+  return {
+    rows: sourceRows.map((r) => ({
+      addr: r.addr,
+      held: r.held,
+      softMoze: Number(r.softMoze) || 0,
+    })),
+    supply: data.supply || 1000,
+    scannedAt: data.updatedAt || Date.now(),
+    source: 'api',
+  };
+}
+
 /** Count soft-staked Moze for account (local stake state). */
 function stakedCountFor(account) {
   if (!account) return 0;
@@ -499,29 +625,46 @@ async function loadHoldersLeaderboard(force) {
   }
 
   if (!force && leaderboardCache) {
-    // refresh soft $MOZE for current browser wallets
-    leaderboardCache.rows = leaderboardCache.rows.map((r) => ({
-      ...r,
-      softMoze: softStakePointsFor(r.addr),
-    }));
+    // merge local soft points if offline source
+    if (leaderboardCache.source !== 'api') {
+      leaderboardCache.rows = leaderboardCache.rows.map((r) => ({
+        ...r,
+        softMoze: softStakePointsFor(r.addr),
+      }));
+    }
     renderLeaderboardTable(leaderboardCache);
     return;
   }
 
-  if (typeof ethers === 'undefined') {
-    if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="lb-empty">Wallet library not loaded.</td></tr>';
-    return;
-  }
-
   leaderboardLoading = true;
-  if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="lb-empty">Scanning holders on-chain…</td></tr>';
+  if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="lb-empty">Loading leaderboard…</td></tr>';
   if (meta) meta.textContent = 'Loading…';
+
   try {
+    // Prefer backend (shared stake points + cached holders)
+    if (apiOnline === null) await pingApi();
+    if (apiOnline) {
+      const data = await loadLeaderboardFromApi(force);
+      leaderboardCache = data;
+      try { sessionStorage.setItem(LB_CACHE_KEY, JSON.stringify(data)); } catch { /* ignore */ }
+      renderLeaderboardTable(data);
+      if (meta) {
+        const when = new Date(data.scannedAt).toLocaleTimeString();
+        meta.textContent = `API · top ${Math.min(LB_TOP_N, data.rows.length)} · ~${data.supply} supply · ${when}`;
+      }
+      return;
+    }
+
+    // Fallback: browser on-chain scan
+    if (typeof ethers === 'undefined') {
+      if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="lb-empty">Wallet library not loaded.</td></tr>';
+      return;
+    }
+    if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="lb-empty">Scanning holders on-chain…</td></tr>';
     const data = await buildHoldersMap();
+    data.source = 'client';
     leaderboardCache = data;
-    try {
-      sessionStorage.setItem(LB_CACHE_KEY, JSON.stringify(data));
-    } catch { /* ignore quota */ }
+    try { sessionStorage.setItem(LB_CACHE_KEY, JSON.stringify(data)); } catch { /* ignore */ }
     renderLeaderboardTable(data);
   } catch (err) {
     console.error(err);
@@ -1495,37 +1638,70 @@ function unstakeIds(ids) {
   return n;
 }
 
-function stakeSelectedTokens() {
-  const n = stakeIds([...stakeSelected]);
+async function stakeSelectedTokens() {
+  const ids = [...stakeSelected];
+  const n = stakeIds(ids);
   stakeSelected = new Set();
   setStakeStatus(n ? ('+' + n + ' Moze staked · +' + (n * MOZE_RATE_PER_DAY) + ' $MOZE/day') : 'Select READY Moze first.');
   renderStakeGrid();
   syncLeaderboardVisibility();
+  if (n) {
+    setStakeStatus('+' + n + ' Moze staked locally · syncing to server…');
+    const res = await apiSignedAction('stake', ids);
+    if (res?.ok) setStakeStatus('+' + n + ' Moze staked · synced to leaderboard.');
+    else if (res?.error) setStakeStatus('+' + n + ' staked (local). Server: ' + res.error);
+    else setStakeStatus('+' + n + ' Moze staked · +' + (n * MOZE_RATE_PER_DAY) + ' $MOZE/day');
+    leaderboardCache = null;
+    syncLeaderboardVisibility();
+  }
 }
 
-function unstakeSelectedTokens() {
-  const n = unstakeIds([...stakeSelected]);
+async function unstakeSelectedTokens() {
+  const ids = [...stakeSelected];
+  const n = unstakeIds(ids);
   stakeSelected = new Set();
   setStakeStatus(n ? (n + ' Moze unstaked. Pending $MOZE stays claimable.') : 'Select STAKED Moze first.');
   renderStakeGrid();
   syncLeaderboardVisibility();
+  if (n) {
+    const res = await apiSignedAction('unstake', ids);
+    if (res?.error) setStakeStatus(n + ' unstaked (local). Server: ' + res.error);
+    leaderboardCache = null;
+    syncLeaderboardVisibility();
+  }
 }
 
-function stakeAllTokens() {
-  const n = stakeIds(stakeOwnedIds);
+async function stakeAllTokens() {
+  const ids = [...stakeOwnedIds];
+  const n = stakeIds(ids);
   stakeSelected = new Set();
   setStakeStatus(n ? ('Stake all: ' + n + ' Moze · rate ' + (n * MOZE_RATE_PER_DAY) + ' $MOZE/day') : 'Everything is already staked.');
   renderStakeGrid();
   syncLeaderboardVisibility();
+  if (n) {
+    setStakeStatus('Stake all: ' + n + ' · syncing to server…');
+    const res = await apiSignedAction('stake', ids);
+    if (res?.ok) setStakeStatus('Stake all: ' + n + ' Moze · synced.');
+    else if (res?.error) setStakeStatus('Stake all local. Server: ' + res.error);
+    leaderboardCache = null;
+    syncLeaderboardVisibility();
+  }
 }
 
-function unstakeAllTokens() {
+async function unstakeAllTokens() {
   const state = loadStakeState(stakeAccount);
-  const n = unstakeIds(Object.keys(state.positions).map(Number));
+  const ids = Object.keys(state.positions).map(Number);
+  const n = unstakeIds(ids);
   stakeSelected = new Set();
   setStakeStatus(n ? ('Unstake all: ' + n + ' Moze. Claim pending anytime.') : 'Nothing staked yet.');
   renderStakeGrid();
   syncLeaderboardVisibility();
+  if (n) {
+    const res = await apiSignedAction('unstake', ids);
+    if (res?.error) setStakeStatus('Unstake all local. Server: ' + res.error);
+    leaderboardCache = null;
+    syncLeaderboardVisibility();
+  }
 }
 
 function selectAllTokens() {
@@ -1534,7 +1710,7 @@ function selectAllTokens() {
   setStakeStatus('Selected ' + stakeSelected.size + ' Moze.');
 }
 
-function claimMoze() {
+async function claimMoze() {
   if (!stakeAccount) return;
   const state = loadStakeState(stakeAccount);
   settleAccrued(state);
@@ -1550,6 +1726,9 @@ function claimMoze() {
   setStakeStatus('Claimed ' + formatMoze(amount) + ' $MOZE. Total claimed: ' + formatMoze(state.claimed) + ' $MOZE.');
   updateDashboard();
   renderStakeGrid();
+  const res = await apiSignedAction('claim', []);
+  if (res?.error) setStakeStatus('Claimed locally. Server: ' + res.error);
+  else if (res?.ok) setStakeStatus('Claimed ' + formatMoze(amount) + ' $MOZE · synced.');
 }
 
 function resetStakeUi() {
@@ -1576,6 +1755,7 @@ function initStake() {
   showStakeChrome(false);
   initCopyChips();
   initStakeNav();
+  pingApi().catch(() => {});
   document.getElementById('stake-connect')?.addEventListener('click', connectStakeWallet);
   document.getElementById('stake-selected')?.addEventListener('click', stakeSelectedTokens);
   document.getElementById('unstake-selected')?.addEventListener('click', unstakeSelectedTokens);

@@ -15,6 +15,22 @@ Static launchpad — gallery, trait lab, whitelist check, soft stake UI, holders
 # http://localhost:8765
 ```
 
+## Backend API
+
+Separate repo: **[artnesh06/moze-api](https://github.com/artnesh06/moze-api)**
+
+- Domain: `https://api.mozestreet.art`
+- Soft stake sync (wallet-signed) + holders leaderboard cache
+- Frontend reads `window.MOZE_API` or defaults to `https://api.mozestreet.art`
+
+Local API override:
+
+```js
+// browser console or index.html
+window.MOZE_API = 'http://localhost:3000';
+// or: localStorage.setItem('moze-api', 'http://localhost:3000')
+```
+
 ## Deploy (Coolify + Docker)
 
 Repo includes `Dockerfile` + `nginx.conf` for static nginx.

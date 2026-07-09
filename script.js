@@ -37,7 +37,9 @@ async function loadData() {
 
   renderGallery();
   startGalleryRotate();
-  initTraits();
+  // Trait Lab temporarily hidden (broken layer paths) — skip init
+  const traitsSection = document.getElementById('traits');
+  if (traitsSection && !traitsSection.hidden) initTraits();
   initLightbox();
   initGallerySearch();
   refreshMintStats();

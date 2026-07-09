@@ -387,53 +387,6 @@ li { margin: 0.3em 0; }
   padding: 0.8em;
 }
 
-/* Shared lock card (leaderboard gate) */
-.trait-lock-card {
-  max-width: 20em;
-  width: 100%;
-  text-align: center;
-  padding: 1.15em 1em 1.25em;
-  background: rgba(255, 255, 255, 0.94);
-  border: 2px solid var(--brown-dark);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
-}
-
-.trait-lock-chains {
-  font-size: 1.35em;
-  letter-spacing: 0.35em;
-  margin-bottom: 0.25em;
-  color: var(--brown-dark);
-  opacity: 0.85;
-}
-
-.trait-lock-title {
-  margin: 0.15em 0 0.35em !important;
-  font-weight: 800;
-  font-size: 1.15em;
-  color: var(--brown-dark);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.trait-lock-copy {
-  margin: 0 0 0.85em !important;
-  font-size: 0.88em;
-  line-height: 1.4;
-  color: var(--muted);
-}
-
-.trait-lock-card .connect-button {
-  min-width: 12em;
-  background: var(--neon);
-  color: var(--brown-dark);
-  border: 1px solid var(--brown-dark);
-}
-
-.trait-lock-status {
-  margin: 0.65em 0 0 !important;
-  min-height: 1.2em;
-}
-
 .composer-wrap {
   text-align: center;
 }
@@ -1033,48 +986,13 @@ li { margin: 0.3em 0; }
   border-left-color: rgba(198, 230, 7, 0.4);
 }
 
-/* Holders Leaderboard */
-.lb-shell {
-  position: relative;
-  margin: 0 0 0.75em;
-  min-height: 12em;
+/* Holders Leaderboard — entire #leaderboard is [hidden] until user stakes */
+#leaderboard[hidden] {
+  display: none !important;
 }
 
 .lb-body {
   padding: 0.5em 0.75em 0.85em;
-  transition: filter 0.35s ease, opacity 0.35s ease;
-}
-
-.lb-shell.locked .lb-body {
-  filter: blur(5px) saturate(0.75);
-  opacity: 0.5;
-  pointer-events: none;
-  user-select: none;
-}
-
-.lb-shell:not(.locked) .lb-body {
-  filter: none;
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.lb-shell:not(.locked) .lb-lock {
-  display: none !important;
-}
-
-.lb-lock {
-  position: absolute;
-  inset: 0;
-  z-index: 4;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1em;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 248, 238, 0.12) 0%,
-    rgba(61, 15, 30, 0.1) 100%
-  );
 }
 
 .lb-toolbar {

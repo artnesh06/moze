@@ -12,7 +12,7 @@
   <meta name="twitter:site" content="@mozenft_">
   <link rel="icon" href="assets/ico.png" type="image/png">
   <meta name="theme-color" content="#5c1a2e">
-  <link rel="stylesheet" href="styles.css?v=34">
+  <link rel="stylesheet" href="styles.css?v=35">
 </head>
 <body>
 
@@ -187,47 +187,32 @@
       </div>
     </div>
 
-    <div class="m_box" id="leaderboard">
+    <div class="m_box" id="leaderboard" hidden>
       <div class="m_box_bar"><h2>Holders Leaderboard</h2></div>
       <p class="centered-text">
-        Top Moze holders on Robinhood. Visible to holders only.
+        Top Moze holders on Robinhood. Stakers only.
       </p>
-      <p class="centered-text fine" id="lb-gate-note">Holders only · connect wallet + hold / stake Moze.</p>
-      <div class="lb-shell locked" id="lb-shell">
-        <div class="lb-body" id="lb-body" aria-hidden="true">
-          <div class="lb-toolbar">
-            <button type="button" id="lb-refresh" class="connect-button stake-btn-sm">Refresh</button>
-            <span id="lb-meta" class="fine"></span>
-          </div>
-          <div class="lb-table-wrap">
-            <table class="lb-table" id="lb-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Wallet</th>
-                  <th>Held</th>
-                  <th>$MOZE staked*</th>
-                </tr>
-              </thead>
-              <tbody id="lb-tbody">
-                <tr><td colspan="4" class="lb-empty">Connect to load…</td></tr>
-              </tbody>
-            </table>
-          </div>
-          <p class="fine lb-footnote">* Soft stake on this device only. Held = on-chain Moze count.</p>
+      <div class="lb-body" id="lb-body">
+        <div class="lb-toolbar">
+          <button type="button" id="lb-refresh" class="connect-button stake-btn-sm">Refresh</button>
+          <span id="lb-meta" class="fine"></span>
         </div>
-        <div class="lb-lock" id="lb-lock">
-          <div class="trait-lock-card">
-            <div class="trait-lock-chains" aria-hidden="true">⛓ ⛓ ⛓</div>
-            <p class="trait-lock-title">Locked</p>
-            <p class="trait-lock-copy">
-              Leaderboard cuma buat holder. Connect wallet di Robinhood
-              dan pastikan lo hold / stake Moze.
-            </p>
-            <button type="button" id="lb-connect" class="connect-button">Connect Wallet</button>
-            <p id="lb-lock-status" class="fine trait-lock-status"></p>
-          </div>
+        <div class="lb-table-wrap">
+          <table class="lb-table" id="lb-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Wallet</th>
+                <th>Held</th>
+                <th>$MOZE staked*</th>
+              </tr>
+            </thead>
+            <tbody id="lb-tbody">
+              <tr><td colspan="4" class="lb-empty">Loading…</td></tr>
+            </tbody>
+          </table>
         </div>
+        <p class="fine lb-footnote">* Soft stake on this device only. Held = on-chain Moze count.</p>
       </div>
     </div>
 
@@ -301,6 +286,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js"></script>
-  <script src="script.js?v=34"></script>
+  <script src="script.js?v=35"></script>
 </body>
 </html>

@@ -321,92 +321,37 @@ function initLightbox() {
   });
 }
 
-let leaderboardUnlocked = false;
+let leaderboardVisible = false;
 let leaderboardCache = null;
 let leaderboardLoading = false;
 
-function setLbLockStatus(msg, isError = false) {
-  const el = document.getElementById('lb-lock-status');
-  if (!el) return;
-  el.textContent = msg || '';
-  el.style.color = isError ? '#a00' : '';
-}
-
-function setLeaderboardUnlocked(unlocked, note) {
-  leaderboardUnlocked = !!unlocked;
-  const shell = document.getElementById('lb-shell');
-  const body = document.getElementById('lb-body');
-  const gateNote = document.getElementById('lb-gate-note');
-  if (shell) shell.classList.toggle('locked', !unlocked);
-  if (body) body.setAttribute('aria-hidden', unlocked ? 'false' : 'true');
-  if (gateNote) {
-    gateNote.textContent = unlocked
-      ? (note || 'Unlocked · holders leaderboard.')
-      : 'Holders only · connect wallet + hold / stake Moze.';
-  }
-  if (unlocked) {
-    loadHoldersLeaderboard(false);
-  }
-}
-
-function hasHoldOrStake(account, ownedIds) {
-  if (ownedIds && ownedIds.length > 0) return true;
-  if (!account) return false;
+/** Count soft-staked Moze for account (local stake state). */
+function stakedCountFor(account) {
+  if (!account) return 0;
   try {
     const state = loadStakeState(account);
-    return Object.keys(state.positions || {}).length > 0;
+    return Object.keys(state.positions || {}).length;
   } catch {
-    return false;
+    return 0;
   }
 }
 
-/** Connect wallet to unlock holders-only leaderboard (and sync stake UI). */
-async function connectHolderWallet() {
-  try {
-    if (typeof ethers === 'undefined') {
-      setLbLockStatus('Library wallet belum ke-load. Refresh page.', true);
-      return;
-    }
-    const eth = getEthereum();
-    if (!eth) {
-      setLbLockStatus('Ga ketemu wallet. Install MetaMask / Rabby dulu.', true);
-      return;
-    }
-    setLbLockStatus('Connecting… Robinhood Chain.');
-    await ensureRobinhoodChain();
-    const provider = new ethers.BrowserProvider(eth);
-    const accounts = await provider.send('eth_requestAccounts', []);
-    if (!accounts?.length) throw new Error('Ga ada account.');
-    const account = accounts[0];
-    setLbLockStatus('Connected. Ngecek hold Moze…');
-    const owned = await fetchOwnedTokenIds(provider, account);
-    stakeAccount = account;
-    stakeOwnedIds = owned;
-
-    if (!hasHoldOrStake(account, owned)) {
-      setLeaderboardUnlocked(false);
-      setLbLockStatus('Belum hold / stake Moze. Mint di OpenSea dulu, atau stake di section atas.', true);
-      return;
-    }
-    const stakedN = Object.keys(loadStakeState(account).positions || {}).length;
-    setLeaderboardUnlocked(
-      true,
-      `Unlocked · ${owned.length} Moze hold${stakedN ? ` · ${stakedN} staked` : ''}.`
-    );
-    setLbLockStatus(`Welcome holder · ${owned.length} Moze kebaca.`);
-    const label = document.getElementById('stake-wallet');
-    const walletText = document.getElementById('stake-wallet-text');
-    const btn = document.getElementById('stake-connect');
-    if (label) {
-      label.hidden = false;
-      label.setAttribute('data-addr', account);
-      if (walletText) walletText.textContent = shortAddr(account);
-    }
-    if (btn) btn.textContent = 'Connected';
-  } catch (err) {
-    console.error(err);
-    setLeaderboardUnlocked(false);
-    setLbLockStatus(err?.message || 'Gagal unlock leaderboard.', true);
+/**
+ * Leaderboard is fully hidden until the connected wallet has ≥1 staked Moze.
+ * No lock UI — section only mounts into view for stakers.
+ */
+function syncLeaderboardVisibility() {
+  const section = document.getElementById('leaderboard');
+  const staked = stakedCountFor(stakeAccount);
+  const show = !!(stakeAccount && staked > 0);
+  leaderboardVisible = show;
+  if (section) {
+    section.hidden = !show;
+    if (!show) section.setAttribute('aria-hidden', 'true');
+    else section.removeAttribute('aria-hidden');
+  }
+  if (show) {
+    loadHoldersLeaderboard(false);
   }
 }
 
@@ -422,11 +367,12 @@ function initTraits() {
   document.getElementById('download-moze')?.addEventListener('click', () => {
     downloadMoze();
   });
-  document.getElementById('lb-connect')?.addEventListener('click', connectHolderWallet);
   document.getElementById('lb-refresh')?.addEventListener('click', () => {
-    if (!leaderboardUnlocked) return;
+    if (!leaderboardVisible) return;
     loadHoldersLeaderboard(true);
   });
+  // hidden until user stakes
+  syncLeaderboardVisibility();
 }
 
 const LB_CACHE_KEY = 'moze-holders-lb-v1';
@@ -535,7 +481,7 @@ function renderLeaderboardTable(data) {
 }
 
 async function loadHoldersLeaderboard(force) {
-  if (!leaderboardUnlocked || leaderboardLoading) return;
+  if (!leaderboardVisible || leaderboardLoading) return;
   const tbody = document.getElementById('lb-tbody');
   const meta = document.getElementById('lb-meta');
 
@@ -1488,8 +1434,7 @@ async function connectStakeWallet() {
     if (!stakeOwnedIds.length) {
       setStakeStatus('Wallet ini belum pegang Moze di Robinhood. Mint dulu di OpenSea, atau cek network-nya.');
       showStakeChrome(false);
-      setLeaderboardUnlocked(false);
-      setLbLockStatus('Belum hold Moze. Mint dulu biar leaderboard kebuka.', true);
+      syncLeaderboardVisibility();
       return;
     }
     // Preload first cover image so UI feels solid
@@ -1511,12 +1456,8 @@ async function connectStakeWallet() {
     showStakeChrome(true);
     renderStakeGrid();
     startStakeTicker();
-    // holders unlock leaderboard
-    setLeaderboardUnlocked(
-      true,
-      `Unlocked · ${stakeOwnedIds.length} Moze hold${nStaked ? ` · ${nStaked} staked` : ''}.`
-    );
-    setLbLockStatus(`Welcome holder · ${stakeOwnedIds.length} Moze kebaca.`);
+    // leaderboard only if already staking
+    syncLeaderboardVisibility();
   } catch (err) {
     console.error(err);
     setStakeStatus(err?.message || 'Gagal connect wallet.', true);
@@ -1559,6 +1500,7 @@ function stakeSelectedTokens() {
   stakeSelected = new Set();
   setStakeStatus(n ? ('+' + n + ' Moze staked · +' + (n * MOZE_RATE_PER_DAY) + ' $MOZE/day') : 'Pilih yang READY dulu.');
   renderStakeGrid();
+  syncLeaderboardVisibility();
 }
 
 function unstakeSelectedTokens() {
@@ -1566,6 +1508,7 @@ function unstakeSelectedTokens() {
   stakeSelected = new Set();
   setStakeStatus(n ? (n + ' Moze unstake. Pending $MOZE tetap bisa di-claim.') : 'Pilih yang STAKED dulu.');
   renderStakeGrid();
+  syncLeaderboardVisibility();
 }
 
 function stakeAllTokens() {
@@ -1573,6 +1516,7 @@ function stakeAllTokens() {
   stakeSelected = new Set();
   setStakeStatus(n ? ('Stake all: ' + n + ' Moze · rate ' + (n * MOZE_RATE_PER_DAY) + ' $MOZE/day') : 'Semua udah staked.');
   renderStakeGrid();
+  syncLeaderboardVisibility();
 }
 
 function unstakeAllTokens() {
@@ -1581,6 +1525,7 @@ function unstakeAllTokens() {
   stakeSelected = new Set();
   setStakeStatus(n ? ('Unstake all: ' + n + ' Moze. Claim pending kapan aja.') : 'Belum ada yang staked.');
   renderStakeGrid();
+  syncLeaderboardVisibility();
 }
 
 function selectAllTokens() {
@@ -1623,9 +1568,8 @@ function resetStakeUi() {
   if (btn) btn.textContent = 'Connect Wallet';
   showStakeChrome(false);
   setStakeStatus('Wallet ganti — connect lagi ya.');
-  setLeaderboardUnlocked(false);
-  setLbLockStatus('Wallet ganti. Connect lagi buat unlock leaderboard.');
   leaderboardCache = null;
+  syncLeaderboardVisibility();
 }
 
 function initStake() {

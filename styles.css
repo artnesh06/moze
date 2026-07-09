@@ -579,6 +579,48 @@ li { margin: 0.3em 0; }
   margin-bottom: 0.5em;
 }
 
+/* Connected → hover shows Disconnect */
+#stake-connect.is-connected {
+  position: relative;
+  min-width: 7.5em;
+}
+
+#stake-connect.is-connected .stake-conn-hover {
+  display: none;
+}
+
+#stake-connect.is-connected:hover,
+#stake-connect.is-connected:focus-visible {
+  background: #5c1a2e;
+  color: #fff;
+  border-color: #5c1a2e;
+}
+
+#stake-connect.is-connected:hover .stake-conn-idle,
+#stake-connect.is-connected:focus-visible .stake-conn-idle {
+  display: none;
+}
+
+#stake-connect.is-connected:hover .stake-conn-hover,
+#stake-connect.is-connected:focus-visible .stake-conn-hover {
+  display: inline;
+}
+
+/* Touch: no reliable hover — show Disconnect when connected on coarse pointers */
+@media (hover: none) {
+  #stake-connect.is-connected .stake-conn-idle {
+    display: none;
+  }
+  #stake-connect.is-connected .stake-conn-hover {
+    display: inline;
+  }
+  #stake-connect.is-connected {
+    background: #5c1a2e;
+    color: #fff;
+    border-color: #5c1a2e;
+  }
+}
+
 .stake-wallet-chip {
   font-size: 0.82em;
 }

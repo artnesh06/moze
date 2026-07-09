@@ -1574,7 +1574,7 @@ async function connectStakeWallet() {
       label.setAttribute('data-addr', stakeAccount);
       if (walletText) walletText.textContent = shortAddr(stakeAccount);
     }
-    if (btn) btn.textContent = 'Connected';
+    setConnectButtonState(true);
     setStakeStatus('Connected. Loading Moze from the blockchain…');
     stakeOwnedIds = await fetchOwnedTokenIds(provider, stakeAccount);
     if (!stakeOwnedIds.length) {
@@ -1734,24 +1734,53 @@ async function claimMoze() {
   else if (res?.ok) setStakeStatus('Claimed ' + formatMoze(amount) + ' $MOZE · synced.');
 }
 
-function resetStakeUi() {
+function setConnectButtonState(connected) {
+  const btn = document.getElementById('stake-connect');
+  if (!btn) return;
+  if (connected) {
+    btn.classList.add('is-connected');
+    btn.setAttribute('aria-label', 'Disconnect wallet');
+    btn.title = 'Click to disconnect';
+    btn.innerHTML =
+      '<span class="stake-conn-label stake-conn-idle">Connected</span>' +
+      '<span class="stake-conn-label stake-conn-hover">Disconnect</span>';
+  } else {
+    btn.classList.remove('is-connected');
+    btn.removeAttribute('title');
+    btn.setAttribute('aria-label', 'Connect wallet');
+    btn.textContent = 'Connect Wallet';
+  }
+}
+
+function disconnectStakeWallet() {
+  resetStakeUi('Wallet disconnected.');
+}
+
+function resetStakeUi(statusMsg) {
   stakeAccount = null;
   stakeOwnedIds = [];
   stakeSelected = new Set();
   if (stakeTickTimer) clearInterval(stakeTickTimer);
   const label = document.getElementById('stake-wallet');
   const walletText = document.getElementById('stake-wallet-text');
-  const btn = document.getElementById('stake-connect');
   if (label) {
     label.hidden = true;
     label.setAttribute('data-addr', '');
   }
   if (walletText) walletText.textContent = '';
-  if (btn) btn.textContent = 'Connect Wallet';
+  setConnectButtonState(false);
   showStakeChrome(false);
-  setStakeStatus('Wallet changed — connect again.');
+  setStakeStatus(statusMsg || 'Wallet changed — connect again.');
   leaderboardCache = null;
   syncLeaderboardVisibility();
+}
+
+async function onStakeConnectClick() {
+  if (stakeAccount) {
+    disconnectStakeWallet();
+    return;
+  }
+  await connectStakeWallet();
 }
 
 function initStake() {
@@ -1759,7 +1788,7 @@ function initStake() {
   initCopyChips();
   initStakeNav();
   pingApi().catch(() => {});
-  document.getElementById('stake-connect')?.addEventListener('click', connectStakeWallet);
+  document.getElementById('stake-connect')?.addEventListener('click', onStakeConnectClick);
   document.getElementById('stake-selected')?.addEventListener('click', stakeSelectedTokens);
   document.getElementById('unstake-selected')?.addEventListener('click', unstakeSelectedTokens);
   document.getElementById('stake-all')?.addEventListener('click', stakeAllTokens);

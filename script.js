@@ -509,7 +509,7 @@ async function loadHoldersLeaderboard(force) {
   }
 
   if (typeof ethers === 'undefined') {
-    if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="lb-empty">Wallet lib belum load.</td></tr>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="lb-empty">Wallet library not loaded.</td></tr>';
     return;
   }
 
@@ -996,7 +996,7 @@ function initCopyChips() {
         }, 1400);
       } catch (err) {
         console.error(err);
-        alert('Copy gagal — select manual: ' + addr);
+        alert('Copy failed — select manually: ' + addr);
       }
     });
   });
@@ -1043,7 +1043,7 @@ function startStakeTicker() {
 
 async function ensureRobinhoodChain() {
   const eth = getEthereum();
-  if (!eth) throw new Error('Wallet belum ke-detect. Install MetaMask / Rabby / wallet EVM dulu.');
+  if (!eth) throw new Error('No wallet detected. Install MetaMask, Rabby, or another EVM wallet.');
   const current = await eth.request({ method: 'eth_chainId' });
   if (current === RH_CHAIN.chainId || current === '0x1237') return eth;
   try {
@@ -1053,7 +1053,7 @@ async function ensureRobinhoodChain() {
     if (code === 4902) {
       await eth.request({ method: 'wallet_addEthereumChain', params: [RH_CHAIN] });
     } else if (code === 4001) {
-      throw new Error('Switch network dibatalin. Pilih Robinhood Chain dulu ya.');
+      throw new Error('Network switch cancelled. Please select Robinhood Chain.');
     } else {
       throw err;
     }
@@ -1061,7 +1061,7 @@ async function ensureRobinhoodChain() {
   // re-check
   const after = await eth.request({ method: 'eth_chainId' });
   if (after !== RH_CHAIN.chainId && after !== '0x1237') {
-    throw new Error('Masih bukan Robinhood Chain. Tambah network manual (chainId 4663).');
+    throw new Error('Still not on Robinhood Chain. Add the network manually (chainId 4663).');
   }
   return eth;
 }
@@ -1087,7 +1087,7 @@ async function fetchOwnedTokenIds(walletProvider, owner) {
       n = Number(await wContract.balanceOf(owner));
     } catch (e2) {
       console.error(err, e2);
-      throw new Error('Gagal baca balance NFT. Pastikan network Robinhood Chain.');
+      throw new Error('Could not read NFT balance. Make sure you are on Robinhood Chain.');
     }
   }
 
@@ -1109,7 +1109,7 @@ async function fetchOwnedTokenIds(walletProvider, owner) {
     if (ts > 0) supply = Math.min(1000, Math.max(ts + 5, ts));
   } catch { /* use 1000 */ }
 
-  setStakeStatus(`Ngecek ownership Moze lo… (${n} NFT di wallet). Sabar sebentar ya.`);
+  setStakeStatus(`Checking Moze ownership… (${n} NFTs in wallet). Hang tight.`);
   const found = [];
   const batch = 50;
   const maxId = Math.max(supply, 1000);
@@ -1128,7 +1128,7 @@ async function fetchOwnedTokenIds(walletProvider, owner) {
       if (id != null) found.push(id);
     }
     if (start > 0 && start % 200 === 0) {
-      setStakeStatus(`Masih ngecek… ketemu ${found.length}/${n} · id ${start}/${maxId}`);
+      setStakeStatus(`Still scanning… found ${found.length}/${n} · id ${start}/${maxId}`);
     }
   }
 
@@ -1215,7 +1215,7 @@ function activeStakeImageUrl(id) {
 
 async function fetchImageBlob(url) {
   const res = await fetch(url, { cache: 'reload' });
-  if (!res.ok) throw new Error('Gagal load gambar');
+  if (!res.ok) throw new Error('Failed to load image');
   const blob = await res.blob();
   // Prefer PNG for clipboard compatibility
   if (blob.type === 'image/png') return blob;
@@ -1233,7 +1233,7 @@ async function fetchImageBlob(url) {
 async function copyActiveStakeImage() {
   const id = getActiveStakeTokenId();
   if (id == null) {
-    setStakeImgStatus('Belum ada NFT aktif.', true);
+    setStakeImgStatus('No active NFT.', true);
     return;
   }
   try {
@@ -1241,7 +1241,7 @@ async function copyActiveStakeImage() {
     const blob = await fetchImageBlob(activeStakeImageUrl(id));
     if (!navigator.clipboard || !window.ClipboardItem) {
       // fallback: download
-      setStakeImgStatus('Clipboard image ga support di browser ini. Pakai Download.', true);
+      setStakeImgStatus('Image clipboard not supported in this browser. Use Download.', true);
       return;
     }
     await navigator.clipboard.write([
@@ -1250,14 +1250,14 @@ async function copyActiveStakeImage() {
     setStakeImgStatus(`Copied Moze #${id} image.`);
   } catch (err) {
     console.error(err);
-    setStakeImgStatus(err?.message || 'Copy image gagal. Coba Download.', true);
+    setStakeImgStatus(err?.message || 'Copy image failed. Try Download.', true);
   }
 }
 
 async function downloadActiveStakeImage() {
   const id = getActiveStakeTokenId();
   if (id == null) {
-    setStakeImgStatus('Belum ada NFT aktif.', true);
+    setStakeImgStatus('No active NFT.', true);
     return;
   }
   try {
@@ -1275,14 +1275,14 @@ async function downloadActiveStakeImage() {
     setStakeImgStatus(`Downloaded #${id}.`);
   } catch (err) {
     console.error(err);
-    setStakeImgStatus(err?.message || 'Download gagal.', true);
+    setStakeImgStatus(err?.message || 'Download failed.', true);
   }
 }
 
 async function shareActiveStakeOnX() {
   const id = getActiveStakeTokenId();
   if (id == null) {
-    setStakeImgStatus('Belum ada NFT aktif.', true);
+    setStakeImgStatus('No active NFT.', true);
     return;
   }
   const item = collection.find(c => Number(c.id) === id);
@@ -1320,7 +1320,7 @@ async function shareActiveStakeOnX() {
   // X/Twitter web intent (text + url; image must be attached manually or via OS share)
   const intent = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
   window.open(intent, '_blank', 'noopener,noreferrer');
-  setStakeImgStatus('X opened. Image copied too (kalau support) biar tinggal paste.');
+  setStakeImgStatus('X opened. Image copied too (if supported) — paste into the post.');
   // best-effort also copy image so user can paste into compose
   try {
     const blob = await fetchImageBlob(activeStakeImageUrl(id));
@@ -1405,19 +1405,19 @@ function updateStakeButtons() {
 async function connectStakeWallet() {
   try {
     if (typeof ethers === 'undefined') {
-      setStakeStatus('Library wallet belum ke-load. Refresh page.', true);
+      setStakeStatus('Wallet library not loaded. Refresh the page.', true);
       return;
     }
     const eth = getEthereum();
     if (!eth) {
-      setStakeStatus('Ga ketemu wallet. Pakai MetaMask / Rabby / wallet EVM ya.', true);
+      setStakeStatus('No wallet found. Use MetaMask, Rabby, or another EVM wallet.', true);
       return;
     }
-    setStakeStatus('Connecting… pilih Robinhood Chain.');
+    setStakeStatus('Connecting… select Robinhood Chain.');
     await ensureRobinhoodChain();
     const provider = new ethers.BrowserProvider(eth);
     const accounts = await provider.send('eth_requestAccounts', []);
-    if (!accounts?.length) throw new Error('Ga ada account yang di-connect.');
+    if (!accounts?.length) throw new Error('No account connected.');
     stakeAccount = accounts[0];
     stakeSelected = new Set();
     const label = document.getElementById('stake-wallet');
@@ -1429,10 +1429,10 @@ async function connectStakeWallet() {
       if (walletText) walletText.textContent = shortAddr(stakeAccount);
     }
     if (btn) btn.textContent = 'Connected';
-    setStakeStatus('Connected. Nge-load Moze dari blockchain…');
+    setStakeStatus('Connected. Loading Moze from the blockchain…');
     stakeOwnedIds = await fetchOwnedTokenIds(provider, stakeAccount);
     if (!stakeOwnedIds.length) {
-      setStakeStatus('Wallet ini belum pegang Moze di Robinhood. Mint dulu di OpenSea, atau cek network-nya.');
+      setStakeStatus('This wallet holds no Moze on Robinhood. Mint on OpenSea, or check the network.');
       showStakeChrome(false);
       syncLeaderboardVisibility();
       return;
@@ -1450,8 +1450,8 @@ async function connectStakeWallet() {
     saveStakeState(stakeAccount, state);
     const nStaked = Object.keys(state.positions).length;
     setStakeStatus(
-      stakeOwnedIds.length + ' Moze kebaca · ' + nStaked + ' staked · ' +
-      formatMoze(pendingMoze(state)) + ' $MOZE pending. Klik kartu buat pilih.'
+      stakeOwnedIds.length + ' Moze found · ' + nStaked + ' staked · ' +
+      formatMoze(pendingMoze(state)) + ' $MOZE pending. Click a card to select.'
     );
     showStakeChrome(true);
     renderStakeGrid();
@@ -1460,7 +1460,7 @@ async function connectStakeWallet() {
     syncLeaderboardVisibility();
   } catch (err) {
     console.error(err);
-    setStakeStatus(err?.message || 'Gagal connect wallet.', true);
+    setStakeStatus(err?.message || 'Failed to connect wallet.', true);
     showStakeChrome(false);
   }
 }
@@ -1498,7 +1498,7 @@ function unstakeIds(ids) {
 function stakeSelectedTokens() {
   const n = stakeIds([...stakeSelected]);
   stakeSelected = new Set();
-  setStakeStatus(n ? ('+' + n + ' Moze staked · +' + (n * MOZE_RATE_PER_DAY) + ' $MOZE/day') : 'Pilih yang READY dulu.');
+  setStakeStatus(n ? ('+' + n + ' Moze staked · +' + (n * MOZE_RATE_PER_DAY) + ' $MOZE/day') : 'Select READY Moze first.');
   renderStakeGrid();
   syncLeaderboardVisibility();
 }
@@ -1506,7 +1506,7 @@ function stakeSelectedTokens() {
 function unstakeSelectedTokens() {
   const n = unstakeIds([...stakeSelected]);
   stakeSelected = new Set();
-  setStakeStatus(n ? (n + ' Moze unstake. Pending $MOZE tetap bisa di-claim.') : 'Pilih yang STAKED dulu.');
+  setStakeStatus(n ? (n + ' Moze unstaked. Pending $MOZE stays claimable.') : 'Select STAKED Moze first.');
   renderStakeGrid();
   syncLeaderboardVisibility();
 }
@@ -1514,7 +1514,7 @@ function unstakeSelectedTokens() {
 function stakeAllTokens() {
   const n = stakeIds(stakeOwnedIds);
   stakeSelected = new Set();
-  setStakeStatus(n ? ('Stake all: ' + n + ' Moze · rate ' + (n * MOZE_RATE_PER_DAY) + ' $MOZE/day') : 'Semua udah staked.');
+  setStakeStatus(n ? ('Stake all: ' + n + ' Moze · rate ' + (n * MOZE_RATE_PER_DAY) + ' $MOZE/day') : 'Everything is already staked.');
   renderStakeGrid();
   syncLeaderboardVisibility();
 }
@@ -1523,7 +1523,7 @@ function unstakeAllTokens() {
   const state = loadStakeState(stakeAccount);
   const n = unstakeIds(Object.keys(state.positions).map(Number));
   stakeSelected = new Set();
-  setStakeStatus(n ? ('Unstake all: ' + n + ' Moze. Claim pending kapan aja.') : 'Belum ada yang staked.');
+  setStakeStatus(n ? ('Unstake all: ' + n + ' Moze. Claim pending anytime.') : 'Nothing staked yet.');
   renderStakeGrid();
   syncLeaderboardVisibility();
 }
@@ -1540,7 +1540,7 @@ function claimMoze() {
   settleAccrued(state);
   const amount = Number(state.banked) || 0;
   if (amount < 0.0001) {
-    setStakeStatus('Belum ada $MOZE buat di-claim. Stake dulu, nunggu dikit.');
+    setStakeStatus('No $MOZE to claim yet. Stake first and wait a bit.');
     updateDashboard();
     return;
   }
@@ -1567,7 +1567,7 @@ function resetStakeUi() {
   if (walletText) walletText.textContent = '';
   if (btn) btn.textContent = 'Connect Wallet';
   showStakeChrome(false);
-  setStakeStatus('Wallet ganti — connect lagi ya.');
+  setStakeStatus('Wallet changed — connect again.');
   leaderboardCache = null;
   syncLeaderboardVisibility();
 }

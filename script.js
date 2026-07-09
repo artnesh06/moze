@@ -963,6 +963,8 @@ let stakeAccount = null;
 let stakeOwnedIds = [];
 let stakeSelected = new Set();
 let stakeTickTimer = null;
+let connectInFlight = false;
+let walletListenersBound = false;
 
 function getEthereum() {
   const eth = window.ethereum;
@@ -972,6 +974,39 @@ function getEthereum() {
     return eth.providers.find((p) => p.isMetaMask) || eth.providers[0];
   }
   return eth;
+}
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+/** Ask wallet for accounts; prefer currently selected account (eth_accounts). */
+async function requestWalletAccounts(eth) {
+  // eth_requestAccounts: prompts if needed
+  try {
+    await eth.request({ method: 'eth_requestAccounts' });
+  } catch (err) {
+    if (err?.code === 4001) throw new Error('Connection cancelled in wallet.');
+    throw err;
+  }
+  // eth_accounts: selected account is [0] in MetaMask
+  let accounts = await eth.request({ method: 'eth_accounts' });
+  if (accounts?.length) return accounts;
+
+  // Some wallets need explicit permission request to re-pick account
+  try {
+    await eth.request({
+      method: 'wallet_requestPermissions',
+      params: [{ eth_accounts: {} }],
+    });
+  } catch (err) {
+    if (err?.code === 4001) throw new Error('Connection cancelled in wallet.');
+  }
+  accounts = await eth.request({ method: 'eth_accounts' });
+  if (!accounts?.length) {
+    accounts = await eth.request({ method: 'eth_requestAccounts' });
+  }
+  return accounts || [];
 }
 
 /** Scroll to staking without putting # in the URL. */
@@ -1301,74 +1336,119 @@ async function ensureRobinhoodChain() {
 
 /** Read-only provider that always hits Robinhood public RPC (reliable for ownerOf). */
 function getRobinhoodReadProvider() {
-  return new ethers.JsonRpcProvider(RH_RPC, 4663);
+  try {
+    const network = ethers.Network.from(4663);
+    return new ethers.JsonRpcProvider(RH_RPC, network, { staticNetwork: network });
+  } catch {
+    return new ethers.JsonRpcProvider(RH_RPC, 4663);
+  }
+}
+
+async function withRetry(fn, tries = 3, delayMs = 400) {
+  let lastErr;
+  for (let i = 0; i < tries; i += 1) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (i < tries - 1) await sleep(delayMs * (i + 1));
+    }
+  }
+  throw lastErr;
+}
+
+/** Server-side ownership scan (avoids flaky browser wallet RPC). */
+async function fetchOwnedViaApi(owner) {
+  if (apiOnline === null) await pingApi();
+  if (!apiOnline) throw new Error('API offline');
+  const data = await apiFetch(`/v1/wallet/${owner}/tokens`);
+  if (!data || data.error) throw new Error(data?.error || 'API token lookup failed');
+  return (data.tokens || []).map(Number).filter((n) => Number.isFinite(n));
 }
 
 async function fetchOwnedTokenIds(walletProvider, owner) {
-  const ownerLc = owner.toLowerCase();
-  // Prefer public RPC for reads — wallet RPCs sometimes lag / wrong chain mid-switch
-  const read = getRobinhoodReadProvider();
-  const contract = new ethers.Contract(MOZE_CA, ERC721_ABI, read);
+  const ownerLc = String(owner).toLowerCase();
+  const errors = [];
 
-  let n = 0;
+  // 1) Public Robinhood RPC (retry)
   try {
-    n = Number(await contract.balanceOf(owner));
-  } catch (err) {
-    // fallback wallet provider
+    const read = getRobinhoodReadProvider();
+    const contract = new ethers.Contract(MOZE_CA, ERC721_ABI, read);
+    const n = Number(await withRetry(() => contract.balanceOf(ownerLc), 3, 350));
+    if (!n) return [];
+
+    // Enumerable
     try {
+      const ids = [];
+      for (let i = 0; i < n; i += 1) {
+        ids.push(Number(await contract.tokenOfOwnerByIndex(ownerLc, i)));
+      }
+      if (ids.length === n) return [...new Set(ids)].sort((a, b) => a - b);
+    } catch { /* scan */ }
+
+    let supply = 1000;
+    try {
+      const ts = Number(await contract.totalSupply());
+      if (ts > 0) supply = Math.min(1000, Math.max(ts + 5, ts));
+    } catch { /* 1000 */ }
+
+    setStakeStatus(`Checking Moze ownership… (${n} NFTs). Hang tight.`);
+    const found = [];
+    const batch = 50;
+    const maxId = Math.max(supply, 1000);
+    for (let start = 0; start <= maxId && found.length < n; start += batch) {
+      const chunk = [];
+      for (let id = start; id < start + batch && id <= maxId; id += 1) {
+        chunk.push(
+          contract.ownerOf(id)
+            .then((o) => (String(o).toLowerCase() === ownerLc ? id : null))
+            .catch(() => null)
+        );
+      }
+      const results = await Promise.all(chunk);
+      for (const id of results) {
+        if (id != null) found.push(id);
+      }
+      if (start > 0 && start % 200 === 0) {
+        setStakeStatus(`Still scanning… found ${found.length}/${n} · id ${start}/${maxId}`);
+      }
+    }
+    if (found.length) return [...new Set(found)].sort((a, b) => a - b);
+    if (n > 0) errors.push(`RPC found balance ${n} but scan returned 0 tokens`);
+  } catch (err) {
+    errors.push(`public RPC: ${err?.shortMessage || err?.message || err}`);
+  }
+
+  // 2) Wallet provider (must be on Robinhood)
+  try {
+    if (walletProvider) {
       const wContract = new ethers.Contract(MOZE_CA, ERC721_ABI, walletProvider);
-      n = Number(await wContract.balanceOf(owner));
-    } catch (e2) {
-      console.error(err, e2);
-      throw new Error('Could not read NFT balance. Make sure you are on Robinhood Chain.');
+      const n = Number(await withRetry(() => wContract.balanceOf(ownerLc), 2, 300));
+      if (!n) return [];
+      // If wallet RPC works for balance, fall through to API for full ID list (faster/reliable)
+      try {
+        return await fetchOwnedViaApi(ownerLc);
+      } catch {
+        return []; // balance known non-zero but can't list — treat as empty list with warning below
+      }
     }
+  } catch (err) {
+    errors.push(`wallet RPC: ${err?.shortMessage || err?.message || err}`);
   }
 
-  if (!n) return [];
-
-  // 1) Enumerable (if contract supports it)
+  // 3) Backend API scan
   try {
-    const ids = [];
-    for (let i = 0; i < n; i += 1) {
-      ids.push(Number(await contract.tokenOfOwnerByIndex(owner, i)));
-    }
-    if (ids.length === n) return [...new Set(ids)].sort((a, b) => a - b);
-  } catch { /* not enumerable */ }
-
-  // 2) Scan token ids (OpenSea drops usually 1..supply; also try 0)
-  let supply = 1000;
-  try {
-    const ts = Number(await contract.totalSupply());
-    if (ts > 0) supply = Math.min(1000, Math.max(ts + 5, ts));
-  } catch { /* use 1000 */ }
-
-  setStakeStatus(`Checking Moze ownership… (${n} NFTs in wallet). Hang tight.`);
-  const found = [];
-  const batch = 50;
-  const maxId = Math.max(supply, 1000);
-
-  for (let start = 0; start <= maxId && found.length < n; start += batch) {
-    const chunk = [];
-    for (let id = start; id < start + batch && id <= maxId; id += 1) {
-      chunk.push(
-        contract.ownerOf(id)
-          .then((o) => (String(o).toLowerCase() === ownerLc ? id : null))
-          .catch(() => null)
-      );
-    }
-    const results = await Promise.all(chunk);
-    for (const id of results) {
-      if (id != null) found.push(id);
-    }
-    if (start > 0 && start % 200 === 0) {
-      setStakeStatus(`Still scanning… found ${found.length}/${n} · id ${start}/${maxId}`);
-    }
+    setStakeStatus('Reading NFTs via Moze API…');
+    return await fetchOwnedViaApi(ownerLc);
+  } catch (err) {
+    errors.push(`API: ${err?.message || err}`);
   }
 
-  if (found.length < n) {
-    console.warn(`Found ${found.length}/${n} tokens for ${owner}`);
-  }
-  return [...new Set(found)].sort((a, b) => a - b);
+  console.error('fetchOwnedTokenIds failed', errors);
+  throw new Error(
+    'Could not read NFT balance. Switch MetaMask to Robinhood Chain (chainId 4663), then reconnect. ' +
+    (errors[0] ? `(${errors[0]})` : '')
+  );
 }
 
 /* Coverflow — Originkit-style (card ~410×412, tilt 10, gap 4, opacity 80) */
@@ -1635,7 +1715,12 @@ function updateStakeButtons() {
   if (unstakeBtn) unstakeBtn.disabled = !sel.some(id => staked.has(id));
 }
 
-async function connectStakeWallet() {
+/**
+ * @param {string} [forcedAddress] — from accountsChanged (already selected)
+ */
+async function connectStakeWallet(forcedAddress) {
+  if (connectInFlight) return;
+  connectInFlight = true;
   try {
     if (typeof ethers === 'undefined') {
       setStakeStatus('Wallet library not loaded. Refresh the page.', true);
@@ -1646,23 +1731,37 @@ async function connectStakeWallet() {
       setStakeStatus('No wallet found. Use MetaMask, Rabby, or another EVM wallet.', true);
       return;
     }
-    setStakeStatus('Connecting… select Robinhood Chain.');
+    setStakeStatus(
+      forcedAddress
+        ? `Switching to ${shortAddr(forcedAddress)}… select Robinhood Chain.`
+        : 'Connecting… select Robinhood Chain.'
+    );
     await ensureRobinhoodChain();
     const provider = new ethers.BrowserProvider(eth);
-    const accounts = await provider.send('eth_requestAccounts', []);
-    if (!accounts?.length) throw new Error('No account connected.');
-    stakeAccount = accounts[0];
+
+    let account = forcedAddress ? String(forcedAddress) : null;
+    if (!account) {
+      const accounts = await requestWalletAccounts(eth);
+      if (!accounts?.length) throw new Error('No account connected.');
+      account = accounts[0];
+    }
+    // Re-read selected account (MetaMask selected account is eth_accounts[0])
+    try {
+      const selected = await eth.request({ method: 'eth_accounts' });
+      if (selected?.[0]) account = selected[0];
+    } catch { /* keep account */ }
+
+    stakeAccount = account;
     stakeSelected = new Set();
     const label = document.getElementById('stake-wallet');
     const walletText = document.getElementById('stake-wallet-text');
-    const btn = document.getElementById('stake-connect');
     if (label) {
       label.hidden = false;
       label.setAttribute('data-addr', stakeAccount);
       if (walletText) walletText.textContent = shortAddr(stakeAccount);
     }
     setConnectButtonState(true);
-    setStakeStatus('Connected. Loading Moze from the blockchain…');
+    setStakeStatus(`Connected ${shortAddr(stakeAccount)}. Loading Moze from the blockchain…`);
     stakeOwnedIds = await fetchOwnedTokenIds(provider, stakeAccount);
     if (!stakeOwnedIds.length) {
       setStakeStatus('This wallet holds no Moze on Robinhood. Mint on OpenSea, or check the network.');
@@ -1695,6 +1794,8 @@ async function connectStakeWallet() {
     console.error(err);
     setStakeStatus(err?.message || 'Failed to connect wallet.', true);
     showStakeChrome(false);
+  } finally {
+    connectInFlight = false;
   }
 }
 
@@ -1839,8 +1940,20 @@ function setConnectButtonState(connected) {
   }
 }
 
-function disconnectStakeWallet() {
+async function disconnectStakeWallet() {
+  const eth = getEthereum();
   resetStakeUi('Wallet disconnected.');
+  // Best-effort revoke so next Connect follows MetaMask's currently selected account
+  try {
+    if (eth?.request) {
+      await eth.request({
+        method: 'wallet_revokePermissions',
+        params: [{ eth_accounts: {} }],
+      });
+    }
+  } catch {
+    // Older wallets may not support revoke — still OK
+  }
 }
 
 function resetStakeUi(statusMsg) {
@@ -1848,6 +1961,7 @@ function resetStakeUi(statusMsg) {
   stakeOwnedIds = [];
   stakeSelected = new Set();
   if (stakeTickTimer) clearInterval(stakeTickTimer);
+  stakeTickTimer = null;
   const label = document.getElementById('stake-wallet');
   const walletText = document.getElementById('stake-wallet-text');
   if (label) {
@@ -1862,12 +1976,46 @@ function resetStakeUi(statusMsg) {
   syncLeaderboardVisibility();
 }
 
+/** MetaMask account switch → auto load new account (or disconnect if none). */
+async function onAccountsChanged(accounts) {
+  const next = accounts?.[0] ? String(accounts[0]) : '';
+  const prev = stakeAccount ? String(stakeAccount) : '';
+  if (!next) {
+    resetStakeUi('Wallet disconnected in MetaMask.');
+    return;
+  }
+  if (next.toLowerCase() === prev.toLowerCase()) return;
+  // Auto-reconnect as the newly selected account
+  await connectStakeWallet(next);
+}
+
 async function onStakeConnectClick() {
   if (stakeAccount) {
-    disconnectStakeWallet();
+    await disconnectStakeWallet();
     return;
   }
   await connectStakeWallet();
+}
+
+function bindWalletListeners() {
+  if (walletListenersBound) return;
+  const eth = getEthereum() || window.ethereum;
+  if (!eth?.on) return;
+  walletListenersBound = true;
+  eth.on('accountsChanged', (accounts) => {
+    onAccountsChanged(accounts).catch((err) => {
+      console.error(err);
+      setStakeStatus(err?.message || 'Failed to switch account.', true);
+    });
+  });
+  eth.on('chainChanged', () => {
+    // Reload stake state for new chain without full page refresh
+    if (stakeAccount) {
+      connectStakeWallet(stakeAccount).catch(() => {
+        resetStakeUi('Network changed. Reconnect wallet.');
+      });
+    }
+  });
 }
 
 function initStake() {
@@ -1875,6 +2023,7 @@ function initStake() {
   initCopyChips();
   initStakeNav();
   pingApi().catch(() => {});
+  bindWalletListeners();
   document.getElementById('stake-connect')?.addEventListener('click', onStakeConnectClick);
   document.getElementById('stake-selected')?.addEventListener('click', stakeSelectedTokens);
   document.getElementById('unstake-selected')?.addEventListener('click', unstakeSelectedTokens);
@@ -1906,8 +2055,6 @@ function initStake() {
     if (Math.abs(dx) > 40) stakeCfStep(dx < 0 ? 1 : -1);
     touchX = null;
   }, { passive: true });
-
-  if (window.ethereum) window.ethereum.on?.('accountsChanged', resetStakeUi);
 }
 
 initStake();

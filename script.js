@@ -8,10 +8,18 @@ const COMPOSER_SIZE = 1000;
 const traitImageCache = new Map();
 let composerDataUrl = null;
 let renderComposerToken = 0;
-const GALLERY_SIZE = 15;
+const GALLERY_SIZE_DESKTOP = 15;
+const GALLERY_SIZE_MOBILE = 16; // 2-col grid → even rows
 const GALLERY_ROTATE_MS = 3000;
 let galleryRotateTimer = null;
 let gallerySearchActive = false;
+
+function gallerySize() {
+  // match styles.css mobile breakpoint (2-col gallery at max-width: 720px)
+  return window.matchMedia('(max-width: 720px)').matches
+    ? GALLERY_SIZE_MOBILE
+    : GALLERY_SIZE_DESKTOP;
+}
 
 let whitelist = new Set();
 
@@ -203,7 +211,7 @@ function paintGalleryGrid(items) {
 function renderGallery() {
   gallerySearchActive = false;
   galleryCycleIndex = 0;
-  paintGalleryGrid(randomGalleryItems(GALLERY_SIZE));
+  paintGalleryGrid(randomGalleryItems(gallerySize()));
   const clearBtn = document.getElementById('gallery-clear');
   if (clearBtn) clearBtn.hidden = true;
   const status = document.getElementById('gallery-search-status');
@@ -271,6 +279,14 @@ function initGallerySearch() {
   });
   clearBtn?.addEventListener('click', () => {
     if (input) input.value = '';
+    renderGallery();
+  });
+  // Re-fill gallery count when crossing mobile/desktop (15 ↔ 16)
+  let lastGallerySize = gallerySize();
+  window.addEventListener('resize', () => {
+    const next = gallerySize();
+    if (next === lastGallerySize || gallerySearchActive) return;
+    lastGallerySize = next;
     renderGallery();
   });
 }

@@ -12,9 +12,15 @@
   <meta name="twitter:site" content="@mozenft_">
   <link rel="icon" href="assets/ico.png" type="image/png">
   <meta name="theme-color" content="#5c1a2e">
-  <link rel="stylesheet" href="styles.css?v=46">
+  <link rel="stylesheet" href="styles.css?v=63">
 </head>
 <body>
+
+  <!-- Fixed street-art stickers (desktop margins) — Left.png / Right.png as-is -->
+  <div class="graffiti-deco" aria-hidden="true">
+    <img class="graffiti-deco-img graffiti-deco-left" src="assets/Left.png" alt="" width="524" height="512" decoding="async">
+    <img class="graffiti-deco-img graffiti-deco-right" src="assets/Right.png" alt="" width="656" height="476" decoding="async">
+  </div>
 
   <div class="banner-top">
     <a href="https://opensea.io/collection/mozestreetart/overview" target="_blank" rel="noopener">
@@ -60,6 +66,13 @@
           </button>
         </div>
         <p id="stake-status" class="centered-text fine stake-status"></p>
+
+        <!-- Visible during ownership scan (even before stake chrome) -->
+        <div id="stake-scan-preview" class="stake-scan-preview" hidden>
+          <p class="stake-scan-title centered-text">Hang tight — loading your Moze…</p>
+          <p id="stake-scan-sub" class="stake-scan-sub centered-text fine">Finding NFTs on Robinhood</p>
+          <div id="stake-scan-cards" class="stake-scan-cards" aria-hidden="true"></div>
+        </div>
 
         <div id="stake-gated" class="stake-gated" hidden>
           <div id="stake-dashboard" class="stake-dashboard">
@@ -126,6 +139,115 @@
               </button>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Soft $MOZE raffle (1 active) — prize: Moze #30 (creator's) -->
+    <div class="m_box" id="raffle">
+      <div class="m_box_bar"><h2>Raffle · $MOZE</h2></div>
+      <p class="centered-text stake-soft">
+        Spend your soft <strong>$MOZE</strong> (from staking) for tickets.
+      </p>
+      <div class="raffle-panel">
+        <div class="raffle-prize-art">
+          <div class="raffle-prize-frame">
+            <img
+              id="raffle-prize-img"
+              src="assets/Collection/30.webp?v=1"
+              alt="Prize Moze #30"
+              width="512"
+              height="512"
+              decoding="async"
+            >
+            <span class="raffle-prize-badge">PRIZE</span>
+            <span class="raffle-prize-id">#30</span>
+          </div>
+          <p class="raffle-prize-caption centered-text fine">
+            Win <strong>Moze #30</strong> — from the founder’s bag
+          </p>
+          <a
+            id="raffle-opensea"
+            class="raffle-opensea-btn"
+            href="https://opensea.io/item/robinhood/0x0e579bcec21ae9dc5400db46cab67d5a8d0a58cc/30"
+            target="_blank"
+            rel="noopener"
+          >View #30 on OpenSea ↗</a>
+
+          <!-- Compact countdown under OpenSea -->
+          <div class="raffle-countdown raffle-countdown-sm" id="raffle-countdown" aria-live="polite">
+            <p class="raffle-countdown-label">Ends in</p>
+            <div class="raffle-countdown-grid">
+              <div class="raffle-cd-cell">
+                <strong id="raffle-cd-days" class="raffle-cd-num">00</strong>
+                <span class="raffle-cd-unit">Days</span>
+              </div>
+              <div class="raffle-cd-cell">
+                <strong id="raffle-cd-hours" class="raffle-cd-num">00</strong>
+                <span class="raffle-cd-unit">Hours</span>
+              </div>
+              <div class="raffle-cd-cell">
+                <strong id="raffle-cd-mins" class="raffle-cd-num">00</strong>
+                <span class="raffle-cd-unit">Mins</span>
+              </div>
+              <div class="raffle-cd-cell">
+                <strong id="raffle-cd-secs" class="raffle-cd-num">00</strong>
+                <span class="raffle-cd-unit">Secs</span>
+              </div>
+            </div>
+            <p id="raffle-countdown-end" class="fine raffle-countdown-end" hidden>Raffle ended</p>
+          </div>
+        </div>
+
+        <div class="raffle-entries-banner" aria-live="polite">
+          <div class="raffle-entries-item">
+            <span class="raffle-entries-label">Total entries</span>
+            <strong id="raffle-total-tickets" class="raffle-entries-num">0</strong>
+          </div>
+          <div class="raffle-entries-item">
+            <span class="raffle-entries-label">Wallets in</span>
+            <strong id="raffle-entrants" class="raffle-entries-num">0</strong>
+          </div>
+          <div class="raffle-entries-item">
+            <span class="raffle-entries-label">Your entries</span>
+            <strong id="raffle-your-tickets" class="raffle-entries-num">0</strong>
+          </div>
+        </div>
+
+        <div class="raffle-head">
+          <h3 id="raffle-title" class="raffle-title">Moze Raffle #1</h3>
+          <p id="raffle-prize" class="raffle-prize fine">Prize: Moze #30</p>
+          <div class="raffle-badges">
+            <span id="raffle-status-pill" class="raffle-pill">—</span>
+            <span id="raffle-cost-pill" class="raffle-pill raffle-pill-cost">— $MOZE / ticket</span>
+          </div>
+        </div>
+
+        <p id="raffle-desc" class="raffle-desc fine centered-text" hidden></p>
+
+        <div class="raffle-metrics" role="list">
+          <div class="raffle-metric highlight" role="listitem">
+            <span class="raffle-metric-label">Your $MOZE</span>
+            <strong id="raffle-your-moze" class="raffle-metric-val">—</strong>
+          </div>
+        </div>
+
+        <div class="raffle-enter-row">
+          <div class="raffle-qty" aria-label="Ticket quantity">
+            <button type="button" id="raffle-qty-minus" class="connect-button stake-btn-sm" aria-label="Fewer tickets">−</button>
+            <input type="number" id="raffle-qty" min="1" max="20" value="1" inputmode="numeric">
+            <button type="button" id="raffle-qty-plus" class="connect-button stake-btn-sm" aria-label="More tickets">+</button>
+          </div>
+          <button type="button" id="raffle-enter" class="connect-button stake-claim">Enter with $MOZE</button>
+        </div>
+        <p id="raffle-cost-line" class="centered-text fine raffle-cost-line">—</p>
+        <p id="raffle-status" class="centered-text fine stake-status"></p>
+
+        <div class="raffle-top" id="raffle-top-wrap">
+          <p class="fine raffle-top-label"><strong>Who entered</strong></p>
+          <p class="fine raffle-top-hint">Wallets that bought tickets with soft $MOZE (updates live).</p>
+          <ol id="raffle-top" class="raffle-top-list"></ol>
+          <p id="raffle-top-empty" class="fine raffle-top-empty">No entries yet — be the first!</p>
         </div>
       </div>
     </div>
@@ -319,11 +441,22 @@
     </div>
   </div>
 
+  <!-- Wallet picker (EIP-6963 + injected EVM) -->
+  <div id="wallet-modal" class="wallet-modal" hidden>
+    <div class="wallet-modal-backdrop" data-close-wallet-modal></div>
+    <div class="wallet-modal-panel" role="dialog" aria-modal="true" aria-labelledby="wallet-modal-title">
+      <h3 id="wallet-modal-title" class="wallet-modal-title">Connect wallet</h3>
+      <p class="wallet-modal-sub fine">Robinhood Chain · MetaMask, Keplr, Rabby, OKX, etc.</p>
+      <div id="wallet-modal-list" class="wallet-modal-list"></div>
+      <button type="button" class="connect-button stake-btn-sm wallet-modal-cancel" data-close-wallet-modal>Cancel</button>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js"></script>
   <script>
     // Optional: override API for local backend
     // window.MOZE_API = 'http://localhost:3000';
   </script>
-  <script src="script.js?v=46"></script>
+  <script src="script.js?v=63"></script>
 </body>
 </html>

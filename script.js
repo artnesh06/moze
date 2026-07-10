@@ -496,7 +496,7 @@ let leaderboardLoading = false;
 // Override: window.MOZE_API or localStorage moze-api
 // Default: api-moze.artnesh.cloud until A record api.mozestreet.art → 161.97.156.23 is live
 // Then switch default back to https://api.mozestreet.art
-const API_BASE = String(
+let API_BASE = String(
   (typeof window !== 'undefined' && window.MOZE_API) ||
   (typeof localStorage !== 'undefined' && localStorage.getItem('moze-api')) ||
   'https://api.mozestreet.art'
@@ -527,6 +527,16 @@ async function apiFetch(path, options = {}) {
 }
 
 async function pingApi() {
+  // Explicit override always wins (local raffle/dev testing)
+  const override =
+    (typeof window !== 'undefined' && window.MOZE_API) ||
+    (typeof localStorage !== 'undefined' && localStorage.getItem('moze-api'));
+  if (override) {
+    API_BASE = String(override).replace(/\/$/, '');
+  } else {
+    // Default: production — real stake/leaderboard data (local empty DB caused hangs/desync)
+    API_BASE = 'https://api.mozestreet.art';
+  }
   try {
     const h = await apiFetch('/health');
     apiOnline = !!(h && h.ok);
@@ -698,8 +708,8 @@ function syncLeaderboardVisibility() {
     else section.removeAttribute('aria-hidden');
   }
   if (show) {
-    // Force refresh so "you" always appears after stake (skip stale empty cache)
-    loadHoldersLeaderboard(true);
+    // Soft load (no force full chain scan) — "you" merged from local stake
+    loadHoldersLeaderboard(false).catch(() => null);
   }
 }
 
@@ -842,7 +852,10 @@ function applyLocalStakerToLeaderboardData(data) {
 }
 
 async function loadHoldersLeaderboard(force) {
-  if (!leaderboardVisible || leaderboardLoading) return;
+  if (!leaderboardVisible) return;
+  // Allow forced refresh to supersede a stuck load; otherwise skip concurrent
+  if (leaderboardLoading && !force) return;
+
   const tbody = document.getElementById('lb-tbody');
   const meta = document.getElementById('lb-meta');
 
@@ -851,7 +864,7 @@ async function loadHoldersLeaderboard(force) {
     try { sessionStorage.removeItem(LB_CACHE_KEY); } catch { /* ignore */ }
   }
 
-  // session cache
+  // session cache — always re-merge "you"
   if (!force && !leaderboardCache) {
     try {
       const raw = sessionStorage.getItem(LB_CACHE_KEY);
@@ -865,22 +878,39 @@ async function loadHoldersLeaderboard(force) {
   }
 
   if (!force && leaderboardCache) {
-    // Always re-merge local staker (API cache may be empty of "you")
     const merged = applyLocalStakerToLeaderboardData(leaderboardCache);
     leaderboardCache = merged;
     renderLeaderboardTable(merged);
     return;
   }
 
-  leaderboardLoading = true;
-  if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="lb-empty">Loading leaderboard…</td></tr>';
-  if (meta) meta.textContent = 'Loading…';
+  // Instant local skeleton so UI never sits on "Loading…" forever
+  const localOnly = applyLocalStakerToLeaderboardData({
+    rows: [],
+    supply: 1000,
+    scannedAt: Date.now(),
+    source: 'local',
+  });
+  if (localOnly.rows.length) {
+    renderLeaderboardTable(localOnly);
+    if (meta) meta.textContent = 'Updating…';
+  } else {
+    if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="lb-empty">Loading leaderboard…</td></tr>';
+    if (meta) meta.textContent = 'Loading…';
+  }
 
+  leaderboardLoading = true;
   try {
-    // Prefer backend (shared stake points + cached holders)
     if (apiOnline === null) await pingApi();
     if (apiOnline) {
-      let data = await loadLeaderboardFromApi(force);
+      // Never pass force=1 to API (blocks on full holder scan). Client cache is enough.
+      const withTimeout = Promise.race([
+        loadLeaderboardFromApi(false),
+        new Promise((_, rej) =>
+          setTimeout(() => rej(new Error('Leaderboard timeout')), 12000)
+        ),
+      ]);
+      let data = await withTimeout;
       data = applyLocalStakerToLeaderboardData(data);
       leaderboardCache = data;
       try { sessionStorage.setItem(LB_CACHE_KEY, JSON.stringify(data)); } catch { /* ignore */ }
@@ -888,23 +918,21 @@ async function loadHoldersLeaderboard(force) {
       return;
     }
 
-    // Fallback: browser on-chain scan
-    if (typeof ethers === 'undefined') {
-      if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="lb-empty">Wallet library not loaded.</td></tr>';
+    // API offline: keep local staker rows
+    if (localOnly.rows.length) {
+      leaderboardCache = localOnly;
+      renderLeaderboardTable(localOnly);
+      if (meta) meta.textContent = 'Local only (API offline)';
       return;
     }
-    if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="lb-empty">Scanning holders on-chain…</td></tr>';
-    let data = await buildHoldersMap();
-    data.source = 'client';
-    data = applyLocalStakerToLeaderboardData(data);
-    leaderboardCache = data;
-    try { sessionStorage.setItem(LB_CACHE_KEY, JSON.stringify(data)); } catch { /* ignore */ }
-    renderLeaderboardTable(data);
+    if (tbody) {
+      tbody.innerHTML =
+        '<tr><td colspan="4" class="lb-empty">API offline — stake to appear here.</td></tr>';
+    }
   } catch (err) {
     console.error(err);
-    // Last resort: still show connected wallet if they staked locally
     const fallback = applyLocalStakerToLeaderboardData({
-      rows: [],
+      rows: leaderboardCache?.rows || [],
       supply: 1000,
       scannedAt: Date.now(),
       source: 'local',
@@ -912,6 +940,7 @@ async function loadHoldersLeaderboard(force) {
     if (fallback.rows.length) {
       leaderboardCache = fallback;
       renderLeaderboardTable(fallback);
+      if (meta) meta.textContent = 'Showing local stake';
     } else if (tbody) {
       tbody.innerHTML = `<tr><td colspan="4" class="lb-empty">${err?.message || 'Failed to load leaderboard.'}</td></tr>`;
     }
@@ -1119,15 +1148,259 @@ let stakeSelected = new Set();
 let stakeTickTimer = null;
 let connectInFlight = false;
 let walletListenersBound = false;
+/** User-selected EIP-1193 provider (from wallet modal). */
+let preferredWalletProvider = null;
+/** EIP-6963 announced wallets: { info, provider }[] */
+const eip6963Wallets = [];
+/** Client cache of owned token lists (session). */
+const ownedTokensClientCache = new Map(); // addr -> { at, tokens }
 
 function getEthereum() {
+  if (preferredWalletProvider) return preferredWalletProvider;
   const eth = window.ethereum;
   if (!eth) return null;
-  // Multi-wallet injectors (MetaMask + others)
   if (Array.isArray(eth.providers) && eth.providers.length) {
     return eth.providers.find((p) => p.isMetaMask) || eth.providers[0];
   }
   return eth;
+}
+
+function initEip6963() {
+  if (typeof window === 'undefined') return;
+  window.addEventListener('eip6963:announceProvider', (event) => {
+    const detail = event?.detail;
+    if (!detail?.provider || !detail?.info) return;
+    const rdns = detail.info.rdns || detail.info.uuid || detail.info.name;
+    if (eip6963Wallets.some((w) => (w.info.rdns || w.info.uuid) === rdns)) return;
+    eip6963Wallets.push({ info: detail.info, provider: detail.provider });
+  });
+  try {
+    window.dispatchEvent(new Event('eip6963:requestProvider'));
+  } catch { /* ignore */ }
+}
+initEip6963();
+
+/** Heuristic: Cosmos-first wallets (may still expose EVM provider). */
+function isCosmosStyleWallet(name = '', rdns = '') {
+  const s = `${name} ${rdns}`.toLowerCase();
+  return (
+    s.includes('keplr') ||
+    s.includes('leap wallet') ||
+    s.includes('cosmostation') ||
+    s.includes('station.terra')
+  );
+}
+
+/**
+ * Resolve best EIP-1193 provider for a wallet entry.
+ * Keplr often injects window.keplr.ethereum for EVM chains.
+ */
+function resolveWalletProvider(w) {
+  if (w?.provider) return w.provider;
+  const name = (w?.name || '').toLowerCase();
+  if (name.includes('keplr') || w?.id?.includes('keplr')) {
+    try {
+      if (window.keplr?.ethereum) return window.keplr.ethereum;
+      if (window.keplr?.getOfflineSigner) {
+        // Some builds expose ethereum on keplr after enable
+        return window.keplr.ethereum || null;
+      }
+    } catch { /* ignore */ }
+  }
+  return null;
+}
+
+function listAvailableWallets() {
+  const list = [];
+  const seen = new Set();
+
+  // EIP-6963 (includes Keplr when installed)
+  for (const w of eip6963Wallets) {
+    const name = w.info.name || 'Wallet';
+    const rdns = w.info.rdns || w.info.uuid || '';
+    const key = rdns || name;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    list.push({
+      id: key,
+      name,
+      icon: w.info.icon || '',
+      provider: w.provider,
+      kind: 'eip6963',
+      cosmosStyle: isCosmosStyleWallet(name, rdns),
+    });
+  }
+
+  // window.ethereum multi-inject
+  const eth = window.ethereum;
+  if (eth) {
+    const providers = Array.isArray(eth.providers) && eth.providers.length
+      ? eth.providers
+      : [eth];
+    for (const p of providers) {
+      let name = 'Browser wallet';
+      let id = 'injected';
+      if (p.isMetaMask && !p.isRabby) {
+        name = 'MetaMask';
+        id = 'metamask';
+      } else if (p.isRabby) {
+        name = 'Rabby';
+        id = 'rabby';
+      } else if (p.isCoinbaseWallet || p.isCoinbaseBrowser) {
+        name = 'Coinbase Wallet';
+        id = 'coinbase';
+      } else if (p.isOkxWallet || p.isOKExWallet) {
+        name = 'OKX Wallet';
+        id = 'okx';
+      } else if (p.isBraveWallet) {
+        name = 'Brave Wallet';
+        id = 'brave';
+      } else if (p.isKeplr) {
+        name = 'Keplr';
+        id = 'keplr-injected';
+      }
+      if (seen.has(id) || list.some((x) => x.provider === p)) continue;
+      if (id === 'metamask' && list.some((x) => /metamask/i.test(x.name))) continue;
+      if (id === 'rabby' && list.some((x) => /rabby/i.test(x.name))) continue;
+      if (id === 'keplr-injected' && list.some((x) => /keplr/i.test(x.name))) continue;
+      if (list.some((x) => x.name.toLowerCase() === name.toLowerCase())) continue;
+      seen.add(id);
+      list.push({
+        id,
+        name,
+        icon: '',
+        provider: p,
+        kind: 'injected',
+        cosmosStyle: /keplr/i.test(name),
+      });
+    }
+  }
+
+  // Keplr EVM provider if announced separately
+  if (window.keplr?.ethereum && !list.some((x) => /keplr/i.test(x.name))) {
+    list.push({
+      id: 'keplr-ethereum',
+      name: 'Keplr',
+      icon: '',
+      provider: window.keplr.ethereum,
+      kind: 'keplr',
+      cosmosStyle: true,
+    });
+  } else if (window.keplr && !list.some((x) => /keplr/i.test(x.name))) {
+    // Still show Keplr entry; resolve provider on click
+    list.push({
+      id: 'keplr-window',
+      name: 'Keplr',
+      icon: '',
+      provider: window.keplr.ethereum || null,
+      kind: 'keplr',
+      cosmosStyle: true,
+    });
+  }
+
+  // Prefer MetaMask / Rabby first; Keplr after common EVM
+  list.sort((a, b) => {
+    const rank = (n) => {
+      const s = n.toLowerCase();
+      if (s.includes('metamask')) return 0;
+      if (s.includes('rabby')) return 1;
+      if (s.includes('okx')) return 2;
+      if (s.includes('coinbase')) return 3;
+      if (s.includes('keplr')) return 5;
+      return 9;
+    };
+    return rank(a.name) - rank(b.name) || a.name.localeCompare(b.name);
+  });
+
+  if (!list.length) {
+    list.push({
+      id: 'none',
+      name: 'No wallet detected',
+      icon: '',
+      provider: null,
+      kind: 'empty',
+    });
+  }
+  return list;
+}
+
+function openWalletModal() {
+  const modal = document.getElementById('wallet-modal');
+  const listEl = document.getElementById('wallet-modal-list');
+  if (!modal || !listEl) return;
+  // Re-request EIP-6963 in case wallets injected late
+  try {
+    window.dispatchEvent(new Event('eip6963:requestProvider'));
+  } catch { /* ignore */ }
+  // slight delay so late announces land
+  window.setTimeout(() => {
+    const wallets = listAvailableWallets();
+    listEl.innerHTML = wallets
+      .map((w) => {
+        if (w.kind === 'empty') {
+          return `<p class="wallet-modal-empty fine">Install MetaMask, Rabby, or Keplr, then refresh.</p>`;
+        }
+        const icon = w.icon
+          ? `<img src="${w.icon}" alt="" class="wallet-modal-icon" width="32" height="32">`
+          : `<span class="wallet-modal-icon-fallback" aria-hidden="true">${/keplr/i.test(w.name) ? 'K' : '◈'}</span>`;
+        const note = w.cosmosStyle
+          ? `<span class="wallet-modal-item-note">EVM mode · Robinhood</span>`
+          : '';
+        return `<button type="button" class="wallet-modal-item" data-wallet-id="${w.id}">
+          ${icon}
+          <span class="wallet-modal-item-text">
+            <span class="wallet-modal-item-name">${w.name}</span>
+            ${note}
+          </span>
+        </button>`;
+      })
+      .join('');
+
+    listEl.querySelectorAll('[data-wallet-id]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-wallet-id');
+        const w = wallets.find((x) => x.id === id);
+        if (!w) return;
+        const provider = resolveWalletProvider(w);
+        if (!provider) {
+          setStakeStatus(
+            /keplr/i.test(w.name || '')
+              ? 'Keplr found but no EVM provider. Enable Ethereum in Keplr, or use MetaMask for Robinhood.'
+              : 'This wallet has no EVM provider.',
+            true
+          );
+          closeWalletModal();
+          return;
+        }
+        preferredWalletProvider = provider;
+        closeWalletModal();
+        connectStakeWallet().catch((err) => {
+          console.error(err);
+          setStakeStatus(err?.message || 'Failed to connect wallet.', true);
+        });
+      });
+    });
+  }, 80);
+
+  modal.hidden = false;
+  document.body.classList.add('wallet-modal-open');
+}
+
+function closeWalletModal() {
+  const modal = document.getElementById('wallet-modal');
+  if (modal) modal.hidden = true;
+  document.body.classList.remove('wallet-modal-open');
+}
+
+function initWalletModal() {
+  const modal = document.getElementById('wallet-modal');
+  if (!modal) return;
+  modal.querySelectorAll('[data-close-wallet-modal]').forEach((el) => {
+    el.addEventListener('click', closeWalletModal);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !modal.hidden) closeWalletModal();
+  });
 }
 
 function sleep(ms) {
@@ -1230,6 +1503,7 @@ function applyServerStakeToLocal(addr, server) {
   const serverPositions = Array.isArray(server.positions) ? server.positions : [];
   const serverClaimed = Number(server.claimed) || 0;
   const serverPending = Number(server.pending) || 0;
+  // Only trust server when it has real activity — empty local API must not wipe localStorage stake
   const serverHas =
     serverPositions.length > 0 || serverClaimed > 0 || serverPending > 0;
 
@@ -1250,10 +1524,8 @@ function applyServerStakeToLocal(addr, server) {
   const state = {
     positions,
     claimed: Math.max(Number(local.claimed) || 0, serverClaimed),
-    // Prefer server banked/pending when server has positions or claims
-    banked: serverPositions.length || serverClaimed > 0
-      ? serverPending
-      : Math.max(Number(local.banked) || 0, serverPending),
+    // Prefer server pending (source of truth after claim / raffle spend)
+    banked: serverPending,
   };
   saveStakeState(addr, state);
   return state;
@@ -1299,11 +1571,78 @@ function pendingMoze(state, now = Date.now()) {
   return (Number(state.banked) || 0) + live;
 }
 
+/** Live pending for connected wallet (dashboard). */
+function getLivePending(addr = stakeAccount) {
+  if (!addr) return 0;
+  const st = loadStakeState(addr);
+  return pendingMoze(st);
+}
+
+/** Total soft $MOZE spendable on raffle = pending + claimed. */
+function getLiveSoftMoze(addr = stakeAccount) {
+  if (!addr) return 0;
+  const st = loadStakeState(addr);
+  return pendingMoze(st) + (Number(st.claimed) || 0);
+}
+
+/**
+ * Settle local accrual into banked and persist — keeps raffle/enter in sync with UI.
+ */
+function settleAndSaveLocal(addr = stakeAccount) {
+  if (!addr) return loadStakeState(addr);
+  const st = loadStakeState(addr);
+  settleAccrued(st);
+  saveStakeState(addr, st);
+  return st;
+}
+
+/** Refresh stake dashboard + raffle strip + leaderboard after claim/stake/enter. */
+async function syncAllStakeUi({
+  hydrate = true,
+  leaderboard = true,
+  raffle = true,
+  forceLb = false,
+} = {}) {
+  if (!stakeAccount) {
+    if (raffle) await refreshRaffle().catch(() => null);
+    return;
+  }
+  if (hydrate) {
+    await hydrateStakeFromApi(stakeAccount).catch(() => null);
+  }
+  settleAndSaveLocal(stakeAccount);
+  updateDashboard();
+  updateRafflePendingStrip();
+  renderStakeGrid();
+  if (raffle) await refreshRaffle().catch(() => null);
+  if (leaderboard) {
+    try {
+      syncLeaderboardVisibility();
+      await loadHoldersLeaderboard(!!forceLb);
+    } catch {
+      /* optional */
+    }
+  }
+}
+
+/** Keep raffle "Your $MOZE" (pending + claimed) in sync every tick. */
+function updateRafflePendingStrip() {
+  const el = document.getElementById('raffle-your-moze');
+  if (!el) return;
+  if (!stakeAccount) {
+    el.textContent = '—';
+    return;
+  }
+  el.textContent = formatMoze(getLiveSoftMoze());
+}
+
 function formatMoze(n) {
   if (!Number.isFinite(n)) return '0';
   if (n >= 100) return n.toFixed(1);
   if (n >= 10) return n.toFixed(2);
-  return n.toFixed(3);
+  if (n >= 1) return n.toFixed(3);
+  // small amounts e.g. 0.1 ticket cost — drop trailing zeros
+  return String(Number(n.toFixed(4)));
 }
 
 /** Build/update slot-machine digit reels inside an element. */
@@ -1434,6 +1773,129 @@ function setStakeStatus(msg, isError = false) {
   el.style.color = isError ? '#a00' : '';
 }
 
+/* ── Scan atmosphere: random Moze cards pixel → clear while ownership scan runs ── */
+let scanAtmosphere = null;
+
+function collectionUrl(id) {
+  return `assets/Collection/${id}.webp?v=neon1`;
+}
+
+function loadImageEl(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.decoding = 'async';
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('img fail'));
+    img.src = src;
+  });
+}
+
+function pickRandomTokenIds(count = 3) {
+  const ids = new Set();
+  let guard = 0;
+  while (ids.size < count && guard < 40) {
+    ids.add(1 + Math.floor(Math.random() * 1000));
+    guard += 1;
+  }
+  return [...ids];
+}
+
+function drawPixelReveal(canvas, img, t) {
+  // t: 0 = chunky pixels, 1 = full clear
+  const size = canvas.width;
+  const ctx = canvas.getContext('2d');
+  if (!ctx || !img) return;
+  const levels = [6, 10, 16, 28, 48, 96, size];
+  const idx = Math.min(levels.length - 1, Math.floor(t * (levels.length - 1)));
+  const px = levels[idx];
+  ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0, 0, size, size);
+  // draw tiny then upscale
+  const off = document.createElement('canvas');
+  off.width = px;
+  off.height = px;
+  const octx = off.getContext('2d');
+  octx.imageSmoothingEnabled = false;
+  octx.drawImage(img, 0, 0, px, px);
+  // light noise early on
+  if (t < 0.75) {
+    const data = octx.getImageData(0, 0, px, px);
+    const amount = (1 - t) * 55;
+    for (let i = 0; i < data.data.length; i += 4) {
+      const n = (Math.random() - 0.5) * amount;
+      data.data[i] = Math.max(0, Math.min(255, data.data[i] + n));
+      data.data[i + 1] = Math.max(0, Math.min(255, data.data[i + 1] + n));
+      data.data[i + 2] = Math.max(0, Math.min(255, data.data[i + 2] + n));
+    }
+    octx.putImageData(data, 0, 0);
+  }
+  ctx.drawImage(off, 0, 0, size, size);
+}
+
+/** Non-blocking: random Moze art (no token # labels) while ownership loads. */
+function startScanAtmosphere(progressHint = '') {
+  stopScanAtmosphere();
+  const root = document.getElementById('stake-scan-preview');
+  const cardsEl = document.getElementById('stake-scan-cards');
+  const sub = document.getElementById('stake-scan-sub');
+  if (!root || !cardsEl) return;
+  root.hidden = false;
+  if (sub) sub.textContent = progressHint || 'Finding NFTs on Robinhood';
+  cardsEl.innerHTML = '';
+
+  const ids = pickRandomTokenIds(3);
+  const cards = [];
+  for (const id of ids) {
+    const wrap = document.createElement('div');
+    wrap.className = 'stake-scan-card';
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    wrap.appendChild(canvas);
+    // no #token label — pure random art
+    cardsEl.appendChild(wrap);
+    const card = { canvas, img: null, t: Math.random() * 0.2 };
+    cards.push(card);
+    // load in background — do not block wallet scan
+    loadImageEl(collectionUrl(id))
+      .then((img) => {
+        card.img = img;
+        drawPixelReveal(canvas, img, card.t);
+      })
+      .catch(() => { /* ignore missing art */ });
+  }
+
+  const started = performance.now();
+  const tick = (now) => {
+    if (!scanAtmosphere) return;
+    const elapsed = (now - started) / 1000;
+    for (const c of cards) {
+      if (!c.img) continue;
+      let t = Math.min(1, elapsed / 0.9);
+      if (elapsed > 0.9) {
+        t = 0.75 + 0.25 * (0.5 + 0.5 * Math.sin(elapsed * 1.8 + c.t * 8));
+      }
+      drawPixelReveal(c.canvas, c.img, t);
+    }
+    scanAtmosphere.raf = requestAnimationFrame(tick);
+  };
+  scanAtmosphere = { raf: requestAnimationFrame(tick), root };
+}
+
+function setScanAtmosphereProgress(msg) {
+  const sub = document.getElementById('stake-scan-sub');
+  if (sub && msg) sub.textContent = msg;
+}
+
+function stopScanAtmosphere() {
+  if (scanAtmosphere?.raf) cancelAnimationFrame(scanAtmosphere.raf);
+  scanAtmosphere = null;
+  const root = document.getElementById('stake-scan-preview');
+  const cardsEl = document.getElementById('stake-scan-cards');
+  if (root) root.hidden = true;
+  if (cardsEl) cardsEl.innerHTML = '';
+}
+
 function shortAddr(a) {
   if (!a || a.length < 10) return a || '';
   return a.slice(0, 6) + '…' + a.slice(-4);
@@ -1510,10 +1972,21 @@ function updateDashboard() {
   if (claimBtn) claimBtn.disabled = pending < 0.0001;
 }
 
+let stakeSyncTick = 0;
 function startStakeTicker() {
   if (stakeTickTimer) clearInterval(stakeTickTimer);
+  stakeSyncTick = 0;
   stakeTickTimer = setInterval(() => {
-    if (stakeAccount) updateDashboard();
+    if (!stakeAccount) return;
+    updateDashboard();
+    updateRafflePendingStrip();
+    stakeSyncTick += 1;
+    // Every ~20s: re-hydrate from API + refresh raffle/leaderboard (claim/stake sync)
+    if (stakeSyncTick % 20 === 0) {
+      syncAllStakeUi({ hydrate: true, leaderboard: true, raffle: true, forceLb: false }).catch(
+        () => null
+      );
+    }
   }, 1000);
 }
 
@@ -1565,98 +2038,159 @@ async function withRetry(fn, tries = 3, delayMs = 400) {
   throw lastErr;
 }
 
-/** Server-side ownership scan (avoids flaky browser wallet RPC). */
+/** Fetch token list from one API base (with timeout). */
+async function fetchOwnedViaApiBase(base, owner, timeoutMs = 8000) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const url = `${String(base).replace(/\/$/, '')}/v1/wallet/${encodeURIComponent(owner)}/tokens`;
+    const res = await fetch(url, {
+      signal: ctrl.signal,
+      headers: { Accept: 'application/json' },
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(data?.error || res.statusText || 'API error');
+    return (data?.tokens || []).map(Number).filter((n) => Number.isFinite(n));
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+/** Prefer current API_BASE; also race production so local empty/slow scan doesn't stall. */
 async function fetchOwnedViaApi(owner) {
   if (apiOnline === null) await pingApi();
-  if (!apiOnline) throw new Error('API offline');
-  const data = await apiFetch(`/v1/wallet/${owner}/tokens`);
-  if (!data || data.error) throw new Error(data?.error || 'API token lookup failed');
-  return (data.tokens || []).map(Number).filter((n) => Number.isFinite(n));
+  const bases = [];
+  if (API_BASE) bases.push(API_BASE);
+  const prod = 'https://api.mozestreet.art';
+  if (!bases.includes(prod)) bases.push(prod);
+
+  const errors = [];
+  // Race all bases — first successful list wins
+  const result = await new Promise((resolve) => {
+    let left = bases.length;
+    let done = false;
+    for (const base of bases) {
+      fetchOwnedViaApiBase(base, owner, 9000)
+        .then((tokens) => {
+          if (!done) {
+            done = true;
+            resolve({ ok: true, tokens, base });
+          }
+        })
+        .catch((err) => {
+          errors.push(`${base}: ${err?.message || err}`);
+          left -= 1;
+          if (left <= 0 && !done) resolve({ ok: false, errors });
+        });
+    }
+  });
+  if (result?.ok) return result.tokens;
+  throw new Error(errors[0] || 'API offline');
 }
 
 async function fetchOwnedTokenIds(walletProvider, owner) {
   const ownerLc = String(owner).toLowerCase();
   const errors = [];
+  // Non-blocking art — does not delay token lookup
+  startScanAtmosphere('Loading your Moze…');
+  setStakeStatus('Hang tight — loading your Moze…');
 
-  // 1) Public Robinhood RPC (retry)
-  try {
-    const read = getRobinhoodReadProvider();
-    const contract = new ethers.Contract(MOZE_CA, ERC721_ABI, read);
-    const n = Number(await withRetry(() => contract.balanceOf(ownerLc), 3, 350));
-    if (!n) return [];
-
-    // Enumerable
-    try {
-      const ids = [];
-      for (let i = 0; i < n; i += 1) {
-        ids.push(Number(await contract.tokenOfOwnerByIndex(ownerLc, i)));
-      }
-      if (ids.length === n) return [...new Set(ids)].sort((a, b) => a - b);
-    } catch { /* scan */ }
-
-    let supply = 1000;
-    try {
-      const ts = Number(await contract.totalSupply());
-      if (ts > 0) supply = Math.min(1000, Math.max(ts + 5, ts));
-    } catch { /* 1000 */ }
-
-    setStakeStatus(`Checking Moze ownership… (${n} NFTs). Hang tight.`);
-    const found = [];
-    const batch = 50;
-    const maxId = Math.max(supply, 1000);
-    for (let start = 0; start <= maxId && found.length < n; start += batch) {
-      const chunk = [];
-      for (let id = start; id < start + batch && id <= maxId; id += 1) {
-        chunk.push(
-          contract.ownerOf(id)
-            .then((o) => (String(o).toLowerCase() === ownerLc ? id : null))
-            .catch(() => null)
-        );
-      }
-      const results = await Promise.all(chunk);
-      for (const id of results) {
-        if (id != null) found.push(id);
-      }
-      if (start > 0 && start % 200 === 0) {
-        setStakeStatus(`Still scanning… found ${found.length}/${n} · id ${start}/${maxId}`);
-      }
-    }
-    if (found.length) return [...new Set(found)].sort((a, b) => a - b);
-    if (n > 0) errors.push(`RPC found balance ${n} but scan returned 0 tokens`);
-  } catch (err) {
-    errors.push(`public RPC: ${err?.shortMessage || err?.message || err}`);
+  // Session cache (reconnect same wallet = instant)
+  const cached = ownedTokensClientCache.get(ownerLc);
+  if (cached && Date.now() - cached.at < 120_000) {
+    setScanAtmosphereProgress('Loaded from cache');
+    stopScanAtmosphere();
+    return cached.tokens;
   }
 
-  // 2) Wallet provider (must be on Robinhood)
+  const remember = (tokens) => {
+    const list = [...new Set((tokens || []).map(Number).filter(Number.isFinite))].sort(
+      (a, b) => a - b
+    );
+    ownedTokensClientCache.set(ownerLc, { at: Date.now(), tokens: list });
+    return list;
+  };
+
   try {
-    if (walletProvider) {
-      const wContract = new ethers.Contract(MOZE_CA, ERC721_ABI, walletProvider);
-      const n = Number(await withRetry(() => wContract.balanceOf(ownerLc), 2, 300));
-      if (!n) return [];
-      // If wallet RPC works for balance, fall through to API for full ID list (faster/reliable)
+    // 1) Quick balance check (1 RPC) — empty wallet exits fast
+    try {
+      const read = getRobinhoodReadProvider();
+      const contract = new ethers.Contract(MOZE_CA, ERC721_ABI, read);
+      const n = Number(await withRetry(() => contract.balanceOf(ownerLc), 2, 200));
+      if (!n) {
+        setScanAtmosphereProgress('No Moze in this wallet');
+        return remember([]);
+      }
+      setStakeStatus(`Hang tight — loading your Moze… (${n} on-chain)`);
+
+      // 2) Enumerable (fast if supported)
       try {
-        return await fetchOwnedViaApi(ownerLc);
-      } catch {
-        return []; // balance known non-zero but can't list — treat as empty list with warning below
-      }
+        const ids = await Promise.all(
+          Array.from({ length: n }, (_, i) =>
+            contract.tokenOfOwnerByIndex(ownerLc, i).then((x) => Number(x))
+          )
+        );
+        if (ids.length === n && ids.every(Number.isFinite)) {
+          return remember(ids);
+        }
+      } catch { /* not enumerable */ }
+    } catch (err) {
+      errors.push(`balance: ${err?.shortMessage || err?.message || err}`);
     }
-  } catch (err) {
-    errors.push(`wallet RPC: ${err?.shortMessage || err?.message || err}`);
-  }
 
-  // 3) Backend API scan
-  try {
-    setStakeStatus('Reading NFTs via Moze API…');
-    return await fetchOwnedViaApi(ownerLc);
-  } catch (err) {
-    errors.push(`API: ${err?.message || err}`);
-  }
+    // 3) API race (prod + local) — usually faster than browser ownerOf scan
+    try {
+      setScanAtmosphereProgress('Fetching ownership…');
+      const ids = await fetchOwnedViaApi(ownerLc);
+      return remember(ids);
+    } catch (err) {
+      errors.push(`API: ${err?.message || err}`);
+    }
 
-  console.error('fetchOwnedTokenIds failed', errors);
-  throw new Error(
-    'Could not read NFT balance. Switch MetaMask to Robinhood Chain (chainId 4663), then reconnect. ' +
-    (errors[0] ? `(${errors[0]})` : '')
-  );
+    // 4) Last resort: browser batched ownerOf
+    try {
+      const read = getRobinhoodReadProvider();
+      const contract = new ethers.Contract(MOZE_CA, ERC721_ABI, read);
+      const n = Number(await contract.balanceOf(ownerLc));
+      if (!n) return remember([]);
+      setScanAtmosphereProgress(`Matching ownership · ${n} NFT${n === 1 ? '' : 's'}`);
+      let supply = 1000;
+      try {
+        const ts = Number(await contract.totalSupply());
+        if (ts > 0) supply = Math.min(1000, Math.max(ts + 5, ts));
+      } catch { /* 1000 */ }
+
+      const found = [];
+      const batch = 100;
+      const maxId = Math.max(supply, 1000);
+      for (let start = 1; start <= maxId && found.length < n; start += batch) {
+        const chunk = [];
+        for (let id = start; id < start + batch && id <= maxId; id += 1) {
+          chunk.push(
+            contract
+              .ownerOf(id)
+              .then((o) => (String(o).toLowerCase() === ownerLc ? id : null))
+              .catch(() => null)
+          );
+        }
+        const results = await Promise.all(chunk);
+        for (const id of results) {
+          if (id != null) found.push(id);
+        }
+      }
+      if (found.length) return remember(found);
+    } catch (err) {
+      errors.push(`scan: ${err?.shortMessage || err?.message || err}`);
+    }
+
+    console.error('fetchOwnedTokenIds failed', errors);
+    throw new Error(
+      'Could not read NFT balance. Switch wallet to Robinhood Chain (chainId 4663), then reconnect. ' +
+        (errors[0] ? `(${errors[0]})` : '')
+    );
+  } finally {
+    stopScanAtmosphere();
+  }
 }
 
 /* Coverflow — Originkit-style (card ~410×412, tilt 10, gap 4, opacity 80) */
@@ -1956,12 +2490,14 @@ async function connectStakeWallet(forcedAddress) {
       if (walletText) walletText.textContent = shortAddr(stakeAccount);
     }
     setConnectButtonState(true);
-    setStakeStatus(`Connected ${shortAddr(stakeAccount)}. Loading Moze from the blockchain…`);
+    setStakeStatus(`Connected ${shortAddr(stakeAccount)}. Hang tight — loading your Moze…`);
     stakeOwnedIds = await fetchOwnedTokenIds(provider, stakeAccount);
     if (!stakeOwnedIds.length) {
+      stopScanAtmosphere();
       setStakeStatus('This wallet holds no Moze on Robinhood. Mint on OpenSea, or check the network.');
       showStakeChrome(false);
       syncLeaderboardVisibility();
+      refreshRaffle().catch(() => {});
       return;
     }
     // Preload first cover image so UI feels solid
@@ -1988,8 +2524,10 @@ async function connectStakeWallet(forcedAddress) {
     startStakeTicker();
     // leaderboard only if already staking
     syncLeaderboardVisibility();
+    refreshRaffle().catch(() => {});
   } catch (err) {
     console.error(err);
+    stopScanAtmosphere();
     setStakeStatus(err?.message || 'Failed to connect wallet.', true);
     showStakeChrome(false);
   } finally {
@@ -2041,7 +2579,7 @@ async function stakeSelectedTokens() {
     else if (res?.error) setStakeStatus('+' + n + ' staked (local). Server: ' + res.error);
     else setStakeStatus('+' + n + ' Moze staked · +' + (n * MOZE_RATE_PER_DAY) + ' $MOZE/day');
     leaderboardCache = null;
-    syncLeaderboardVisibility();
+    await syncAllStakeUi({ hydrate: true, leaderboard: true, raffle: true, forceLb: true });
   }
 }
 
@@ -2056,7 +2594,7 @@ async function unstakeSelectedTokens() {
     const res = await apiSignedAction('unstake', ids);
     if (res?.error) setStakeStatus(n + ' unstaked (local). Server: ' + res.error);
     leaderboardCache = null;
-    syncLeaderboardVisibility();
+    await syncAllStakeUi({ hydrate: true, leaderboard: true, raffle: true, forceLb: true });
   }
 }
 
@@ -2073,7 +2611,7 @@ async function stakeAllTokens() {
     if (res?.ok) setStakeStatus('Stake all: ' + n + ' Moze · synced.');
     else if (res?.error) setStakeStatus('Stake all local. Server: ' + res.error);
     leaderboardCache = null;
-    syncLeaderboardVisibility();
+    await syncAllStakeUi({ hydrate: true, leaderboard: true, raffle: true, forceLb: true });
   }
 }
 
@@ -2089,7 +2627,7 @@ async function unstakeAllTokens() {
     const res = await apiSignedAction('unstake', ids);
     if (res?.error) setStakeStatus('Unstake all local. Server: ' + res.error);
     leaderboardCache = null;
-    syncLeaderboardVisibility();
+    await syncAllStakeUi({ hydrate: true, leaderboard: true, raffle: true, forceLb: true });
   }
 }
 
@@ -2101,12 +2639,12 @@ function selectAllTokens() {
 
 async function claimMoze() {
   if (!stakeAccount) return;
-  const state = loadStakeState(stakeAccount);
-  settleAccrued(state);
+  const state = settleAndSaveLocal(stakeAccount);
   const amount = Number(state.banked) || 0;
   if (amount < 0.0001) {
     setStakeStatus('No $MOZE to claim yet. Stake first and wait a bit.');
     updateDashboard();
+    updateRafflePendingStrip();
     return;
   }
   state.claimed = (Number(state.claimed) || 0) + amount;
@@ -2114,10 +2652,15 @@ async function claimMoze() {
   saveStakeState(stakeAccount, state);
   setStakeStatus('Claimed ' + formatMoze(amount) + ' $MOZE. Total claimed: ' + formatMoze(state.claimed) + ' $MOZE.');
   updateDashboard();
+  updateRafflePendingStrip();
   renderStakeGrid();
   const res = await apiSignedAction('claim', []);
   if (res?.error) setStakeStatus('Claimed locally. Server: ' + res.error);
   else if (res?.ok) setStakeStatus('Claimed ' + formatMoze(amount) + ' $MOZE · synced.');
+  await syncAllStakeUi({ hydrate: true, leaderboard: true, raffle: true, forceLb: true });
+  if (res?.ok) {
+    setStakeStatus('Claimed ' + formatMoze(amount) + ' $MOZE · synced. (Still usable for raffle.)');
+  }
 }
 
 function setConnectButtonState(connected) {
@@ -2192,7 +2735,8 @@ async function onStakeConnectClick() {
     await disconnectStakeWallet();
     return;
   }
-  await connectStakeWallet();
+  // Show wallet picker (MetaMask / Rabby / etc.)
+  openWalletModal();
 }
 
 function bindWalletListeners() {
@@ -2220,6 +2764,7 @@ function initStake() {
   showStakeChrome(false);
   initCopyChips();
   initStakeNav();
+  initWalletModal();
   pingApi().catch(() => {});
   bindWalletListeners();
   document.getElementById('stake-connect')?.addEventListener('click', onStakeConnectClick);
@@ -2253,7 +2798,400 @@ function initStake() {
     if (Math.abs(dx) > 40) stakeCfStep(dx < 0 ? 1 : -1);
     touchX = null;
   }, { passive: true });
+
+  initRaffle();
+}
+
+/* ── Soft $MOZE Raffle ── */
+let raffleState = null;
+let raffleQty = 1;
+let raffleCountdownTimer = null;
+
+function setRaffleStatus(msg, isError = false) {
+  const el = document.getElementById('raffle-status');
+  if (!el) return;
+  el.textContent = msg || '';
+  el.style.color = isError ? '#a00' : '';
+}
+
+/** Shake Enter button when click is blocked / failed */
+function shakeRaffleEnterBtn() {
+  const btn = document.getElementById('raffle-enter');
+  if (!btn) return;
+  btn.classList.remove('is-shake');
+  // reflow so re-trigger works on rapid clicks
+  void btn.offsetWidth;
+  btn.classList.add('is-shake');
+  window.clearTimeout(shakeRaffleEnterBtn._t);
+  shakeRaffleEnterBtn._t = window.setTimeout(() => {
+    btn.classList.remove('is-shake');
+  }, 500);
+  try {
+    if (navigator.vibrate) navigator.vibrate(40);
+  } catch { /* ignore */ }
+}
+
+function clampRaffleQty(n) {
+  const max = raffleState?.maxTicketsPerWallet || 20;
+  const your = Number(raffleState?.yourTickets) || 0;
+  const room = Math.max(1, max - your);
+  return Math.max(1, Math.min(room, Math.floor(Number(n) || 1)));
+}
+
+function pad2(n) {
+  return String(Math.max(0, Math.floor(n))).padStart(2, '0');
+}
+
+/** Live day / hour / min / sec countdown to raffle.endsAt */
+function tickRaffleCountdown() {
+  const endsAt = Number(raffleState?.endsAt) || 0;
+  const root = document.getElementById('raffle-countdown');
+  const endMsg = document.getElementById('raffle-countdown-end');
+  const set = (id, v) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = v;
+  };
+  if (!endsAt || !root) {
+    set('raffle-cd-days', '—');
+    set('raffle-cd-hours', '—');
+    set('raffle-cd-mins', '—');
+    set('raffle-cd-secs', '—');
+    return;
+  }
+  const left = endsAt - Date.now();
+  if (left <= 0) {
+    set('raffle-cd-days', '00');
+    set('raffle-cd-hours', '00');
+    set('raffle-cd-mins', '00');
+    set('raffle-cd-secs', '00');
+    root.classList.add('is-ended');
+    if (endMsg) endMsg.hidden = false;
+    if (raffleState) raffleState.open = false;
+    const pill = document.getElementById('raffle-status-pill');
+    if (pill) {
+      pill.textContent = 'Closed';
+      pill.classList.remove('is-open');
+      pill.classList.add('is-closed');
+    }
+    document.getElementById('raffle-enter')?.setAttribute('disabled', 'disabled');
+    return;
+  }
+  root.classList.remove('is-ended');
+  if (endMsg) endMsg.hidden = true;
+  const sec = Math.floor(left / 1000);
+  const days = Math.floor(sec / 86400);
+  const hours = Math.floor((sec % 86400) / 3600);
+  const mins = Math.floor((sec % 3600) / 60);
+  const secs = sec % 60;
+  set('raffle-cd-days', pad2(days));
+  set('raffle-cd-hours', pad2(hours));
+  set('raffle-cd-mins', pad2(mins));
+  set('raffle-cd-secs', pad2(secs));
+}
+
+function startRaffleCountdown() {
+  if (raffleCountdownTimer) clearInterval(raffleCountdownTimer);
+  tickRaffleCountdown();
+  raffleCountdownTimer = setInterval(tickRaffleCountdown, 1000);
+}
+
+function updateRaffleCostLine() {
+  const cost = Number(raffleState?.ticketCost) || 0;
+  const line = document.getElementById('raffle-cost-line');
+  const qtyEl = document.getElementById('raffle-qty');
+  if (qtyEl) qtyEl.value = String(raffleQty);
+  if (line) {
+    if (!raffleState) {
+      line.textContent = '—';
+      return;
+    }
+    line.textContent = `${raffleQty} ticket${raffleQty === 1 ? '' : 's'} · ${formatMoze(cost * raffleQty)} $MOZE`;
+  }
+}
+
+function renderRaffle(data) {
+  raffleState = data?.raffle || null;
+  const setText = (id, v) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = v;
+  };
+  if (!raffleState) {
+    setText('raffle-title', 'No active raffle');
+    setText('raffle-prize', 'Check back soon.');
+    setText('raffle-status-pill', 'Closed');
+    document.getElementById('raffle-status-pill')?.classList.remove('is-open');
+    document.getElementById('raffle-status-pill')?.classList.add('is-closed');
+    setText('raffle-cost-pill', '—');
+    setText('raffle-total-tickets', '0');
+    setText('raffle-entrants', '0');
+    setText('raffle-your-tickets', '0');
+    setText('raffle-your-moze', '—');
+    document.getElementById('raffle-enter')?.setAttribute('disabled', 'disabled');
+    updateRaffleCostLine();
+    return;
+  }
+
+  setText('raffle-title', raffleState.title || 'Moze Raffle #1');
+  setText('raffle-prize', raffleState.prizeLabel ? `Prize: ${raffleState.prizeLabel}` : 'Prize: TBD');
+  // Description copy hidden in UI (kept on API for metadata only)
+  const descEl = document.getElementById('raffle-desc');
+  if (descEl) {
+    descEl.textContent = '';
+    descEl.hidden = true;
+  }
+  const open = !!raffleState.open;
+  const pill = document.getElementById('raffle-status-pill');
+  if (pill) {
+    pill.textContent = open ? 'Open' : (raffleState.status || 'Closed');
+    pill.classList.toggle('is-open', open);
+    pill.classList.toggle('is-closed', !open);
+  }
+  setText('raffle-cost-pill', `${formatMoze(raffleState.ticketCost)} $MOZE / ticket`);
+  setText('raffle-total-tickets', String(raffleState.totalTickets ?? 0));
+  setText('raffle-entrants', String(raffleState.entrants ?? 0));
+  setText('raffle-your-tickets', String(raffleState.yourTickets ?? 0));
+
+  // Total soft $MOZE (pending + claimed) — what you spend on tickets
+  let moze = raffleState.yourMoze;
+  if (stakeAccount) {
+    try {
+      moze = getLiveSoftMoze(stakeAccount);
+    } catch { /* keep api */ }
+  }
+  setText('raffle-your-moze', moze == null ? '—' : formatMoze(moze));
+
+  const enterBtn = document.getElementById('raffle-enter');
+  if (enterBtn) {
+    if (open) enterBtn.removeAttribute('disabled');
+    else enterBtn.setAttribute('disabled', 'disabled');
+  }
+
+  raffleQty = clampRaffleQty(raffleQty);
+  updateRaffleCostLine();
+  startRaffleCountdown();
+
+  // Who entered — always visible so buyers can find the list
+  const top = Array.isArray(raffleState.top) ? raffleState.top : [];
+  const wrap = document.getElementById('raffle-top-wrap');
+  const list = document.getElementById('raffle-top');
+  const empty = document.getElementById('raffle-top-empty');
+  if (wrap) wrap.hidden = false;
+  if (list) {
+    if (!top.length) {
+      list.innerHTML = '';
+      if (empty) empty.hidden = false;
+    } else {
+      if (empty) empty.hidden = true;
+      list.innerHTML = top
+        .map((r, i) => {
+          const you =
+            stakeAccount &&
+            String(r.addr || '').toLowerCase() === String(stakeAccount).toLowerCase();
+          const t = Number(r.tickets) || 0;
+          return (
+            `<li>` +
+            `<span class="raffle-entry-rank">#${i + 1}</span>` +
+            `<span class="raffle-entry-addr">${shortAddr(r.addr)}${you ? ' · you' : ''}</span>` +
+            `<span class="raffle-entry-tickets">${t} ticket${t === 1 ? '' : 's'}</span>` +
+            `</li>`
+          );
+        })
+        .join('');
+    }
+  }
+}
+
+async function refreshRaffle() {
+  try {
+    if (apiOnline === null) await pingApi();
+    if (!apiOnline) {
+      setRaffleStatus('API offline — raffle needs moze-api.', true);
+      return null;
+    }
+    const you = stakeAccount ? String(stakeAccount).toLowerCase() : '';
+    const q = you ? `?you=${encodeURIComponent(you)}` : '';
+    const data = await apiFetch(`/v1/raffle${q}`);
+    renderRaffle(data);
+    if (!data?.raffle) setRaffleStatus('No raffle configured yet.');
+    else if (!data.raffle.open) setRaffleStatus('This raffle is closed.');
+    else if (!stakeAccount) setRaffleStatus('Connect wallet above to enter with pending $MOZE.');
+    else setRaffleStatus('');
+    return data;
+  } catch (err) {
+    console.warn('[raffle]', err?.message || err);
+    setRaffleStatus(err?.message || 'Could not load raffle', true);
+    return null;
+  }
+}
+
+async function enterRaffleWithMoze() {
+  if (!stakeAccount) {
+    setRaffleStatus('Connect wallet in Staking first.', true);
+    shakeRaffleEnterBtn();
+    return;
+  }
+  if (!raffleState?.open) {
+    setRaffleStatus('Raffle is not open.', true);
+    shakeRaffleEnterBtn();
+    return;
+  }
+  const tickets = clampRaffleQty(document.getElementById('raffle-qty')?.value || raffleQty);
+  raffleQty = tickets;
+  updateRaffleCostLine();
+  const cost = Number(raffleState.ticketCost) * tickets;
+
+  // Sync from API — enter spends total soft $MOZE (pending + claimed)
+  setRaffleStatus('Checking your $MOZE…');
+  await hydrateStakeFromApi(stakeAccount).catch(() => null);
+  const st = settleAndSaveLocal(stakeAccount);
+  const soft = (Number(st.banked) || 0) + (Number(st.claimed) || 0);
+  updateDashboard();
+  updateRafflePendingStrip();
+
+  if (soft + 1e-9 < cost) {
+    const needMore = Math.max(0, cost - soft);
+    setRaffleStatus(
+      `Need ${formatMoze(cost)} $MOZE · you have ${formatMoze(soft)}` +
+        (needMore > 0 ? ` · need +${formatMoze(needMore)} more (stake to earn).` : ''),
+      true
+    );
+    shakeRaffleEnterBtn();
+    return;
+  }
+
+  const btn = document.getElementById('raffle-enter');
+  if (btn) btn.disabled = true;
+  setRaffleStatus('Sign in wallet to spend $MOZE…');
+
+  try {
+    if (apiOnline === null) await pingApi();
+    if (!apiOnline) throw new Error('API offline');
+
+    const address = String(stakeAccount).toLowerCase();
+    const nonceRes = await apiFetch('/v1/auth/nonce', {
+      method: 'POST',
+      body: JSON.stringify({ address }),
+    });
+    const nonce = nonceRes.nonce;
+    const timestamp = Date.now();
+    const message = [
+      'Moze Raffle',
+      'Action: raffle_enter',
+      `Raffle: ${Number(raffleState.id)}`,
+      `Tickets: ${tickets}`,
+      `Address: ${address}`,
+      `Nonce: ${nonce}`,
+      `Timestamp: ${timestamp}`,
+    ].join('\n');
+
+    const eth = getEthereum();
+    if (!eth) throw new Error('No wallet');
+    const provider = new ethers.BrowserProvider(eth);
+    const signer = await provider.getSigner();
+    const signature = await signer.signMessage(message);
+
+    const res = await apiFetch('/v1/raffle/enter', {
+      method: 'POST',
+      body: JSON.stringify({
+        address,
+        raffleId: raffleState.id,
+        tickets,
+        nonce,
+        timestamp,
+        signature,
+      }),
+    });
+
+    if (res?.ok) {
+      try {
+        const local = settleAndSaveLocal(address);
+        let left = Number(res.spent || cost);
+        const fromB = Math.min(Number(local.banked) || 0, left);
+        local.banked = Math.max(0, (Number(local.banked) || 0) - fromB);
+        left -= fromB;
+        if (left > 0) {
+          local.claimed = Math.max(0, (Number(local.claimed) || 0) - left);
+        }
+        saveStakeState(address, local);
+      } catch { /* ignore */ }
+      await syncAllStakeUi({ hydrate: true, leaderboard: true, raffle: true, forceLb: true });
+      setRaffleStatus(
+        `Entered +${tickets} ticket${tickets === 1 ? '' : 's'} · spent ${formatMoze(res.spent || cost)} $MOZE`
+      );
+    } else {
+      shakeRaffleEnterBtn();
+    }
+  } catch (err) {
+    console.warn('[raffle enter]', err);
+    const have = err?.data?.have;
+    const need = err?.data?.need;
+    let msg = err?.data?.error || err?.message || 'Enter failed';
+    if (have != null && need != null) {
+      msg = `Need ${formatMoze(need)} $MOZE · you have ${formatMoze(Number(have))}. Stake to earn more.`;
+    }
+    setRaffleStatus(msg, true);
+    shakeRaffleEnterBtn();
+    await syncAllStakeUi({ hydrate: true, leaderboard: false, raffle: true });
+  } finally {
+    if (btn && raffleState?.open) btn.disabled = false;
+  }
+}
+
+function initRaffle() {
+  document.getElementById('raffle-qty-minus')?.addEventListener('click', () => {
+    raffleQty = clampRaffleQty(raffleQty - 1);
+    updateRaffleCostLine();
+  });
+  document.getElementById('raffle-qty-plus')?.addEventListener('click', () => {
+    raffleQty = clampRaffleQty(raffleQty + 1);
+    updateRaffleCostLine();
+  });
+  document.getElementById('raffle-qty')?.addEventListener('change', (e) => {
+    raffleQty = clampRaffleQty(e.target.value);
+    updateRaffleCostLine();
+  });
+  document.getElementById('raffle-enter')?.addEventListener('click', () => {
+    enterRaffleWithMoze().catch(() => {});
+  });
+  refreshRaffle().catch(() => {});
+}
+
+/** Keep fixed graffiti stickers above the green footer (never tucked under it). */
+function updateGraffitiAboveFooter() {
+  const footer = document.querySelector('.site-footer');
+  const imgs = document.querySelectorAll('.graffiti-deco-img');
+  if (!footer || !imgs.length) return;
+  const fr = footer.getBoundingClientRect();
+  const vh = window.innerHeight || document.documentElement.clientHeight;
+  const base = 16; // px resting clearance from viewport bottom
+  let bottom = base;
+  // When footer enters the viewport, sit just above its top edge
+  if (fr.top < vh) {
+    bottom = Math.max(base, Math.ceil(vh - fr.top) + 10);
+  }
+  // Cap so stickers don't fly too high on short screens
+  bottom = Math.min(bottom, Math.floor(vh * 0.55));
+  for (const img of imgs) {
+    img.style.bottom = `${bottom}px`;
+  }
+}
+
+function initGraffitiFooterGuard() {
+  if (!document.querySelector('.graffiti-deco')) return;
+  let ticking = false;
+  const onScroll = () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      updateGraffitiAboveFooter();
+      ticking = false;
+    });
+  };
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll, { passive: true });
+  updateGraffitiAboveFooter();
 }
 
 initStake();
+initGraffitiFooterGuard();
 loadData();

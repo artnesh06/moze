@@ -314,6 +314,698 @@ body {
 .page-wrap {
   max-width: 43em;
   margin: auto;
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Stake scan pixel preview ── */
+.stake-scan-preview {
+  margin: 0.75em 0 1em;
+  padding: 0.85em 0.6em 1em;
+  border: 1px dashed var(--border);
+  background: linear-gradient(180deg, #fffef9, #f7f0e4);
+}
+
+.stake-scan-preview[hidden] {
+  display: none !important;
+}
+
+.stake-scan-title {
+  margin: 0.2em 0 0.15em;
+  font-weight: 700;
+  color: var(--brown);
+}
+
+.stake-scan-sub {
+  margin: 0 0 0.75em;
+  color: var(--muted);
+}
+
+.stake-scan-cards {
+  display: flex;
+  justify-content: center;
+  gap: 0.65em;
+  flex-wrap: wrap;
+}
+
+.stake-scan-card {
+  width: min(28vw, 120px);
+  aspect-ratio: 1;
+  border: 2px solid var(--brown);
+  background: #111;
+  overflow: hidden;
+  box-shadow: 2px 2px 0 rgba(92, 26, 46, 0.15);
+  position: relative;
+}
+
+.stake-scan-card canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* Token # labels intentionally removed during scan loading */
+
+/* ── Raffle ── */
+.raffle-panel {
+  padding: 0.6em 0.9em 1.1em;
+}
+
+.raffle-prize-art {
+  margin: 0.35em 0 0.85em;
+  text-align: center;
+}
+
+.raffle-prize-frame {
+  position: relative;
+  display: inline-block;
+  width: min(72vw, 220px);
+  aspect-ratio: 1;
+  /* Sharp square + green outline (no curve) */
+  border: 3px solid var(--neon-deep);
+  border-radius: 0;
+  overflow: hidden;
+  background: #c6e607;
+  outline: 2px solid var(--neon);
+  outline-offset: 3px;
+  box-shadow: 3px 3px 0 rgba(92, 26, 46, 0.18);
+}
+
+.raffle-opensea-btn {
+  display: inline-block;
+  margin-top: 0.55em;
+  padding: 0.45em 0.95em;
+  font-size: 0.9em;
+  font-weight: 700;
+  color: #fff !important;
+  background: #2081e2;
+  border: 2px solid #1868b7;
+  border-radius: 0;
+  text-decoration: none !important;
+  box-shadow: 2px 2px 0 rgba(24, 104, 183, 0.25);
+}
+
+.raffle-opensea-btn:hover {
+  background: #1868b7;
+  color: #fff !important;
+}
+
+.raffle-entries-banner {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+  margin: 0.75em 0 0.9em;
+  border: 2px solid var(--neon-deep);
+  background: linear-gradient(180deg, #f8ffd4, #eef7a8);
+}
+
+.raffle-entries-item {
+  padding: 0.65em 0.4em;
+  text-align: center;
+  border-right: 1px solid rgba(155, 181, 5, 0.55);
+}
+
+.raffle-entries-item:last-child {
+  border-right: none;
+}
+
+.raffle-entries-label {
+  display: block;
+  font-size: 0.68em;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin-bottom: 0.2em;
+}
+
+.raffle-entries-num {
+  font-size: 1.35em;
+  color: var(--brown);
+  line-height: 1.1;
+}
+
+@media (max-width: 520px) {
+  .raffle-entries-banner {
+    grid-template-columns: 1fr;
+  }
+  .raffle-entries-item {
+    border-right: none;
+    border-bottom: 1px solid rgba(155, 181, 5, 0.55);
+  }
+  .raffle-entries-item:last-child {
+    border-bottom: none;
+  }
+}
+
+/* Wallet connect modal */
+.wallet-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1em;
+}
+
+.wallet-modal[hidden] {
+  display: none !important;
+}
+
+.wallet-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(40, 10, 20, 0.45);
+}
+
+.wallet-modal-panel {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 340px);
+  background: var(--cream);
+  border: 2px solid var(--brown);
+  padding: 1.15em 1.1em 1em;
+  box-shadow: 4px 4px 0 rgba(92, 26, 46, 0.2);
+  text-align: center;
+}
+
+.wallet-modal-title {
+  margin: 0 0 0.3em;
+  color: var(--brown);
+  font-size: 1.2em;
+  text-align: center;
+}
+
+.wallet-modal-sub {
+  margin: 0 auto 0.9em;
+  color: var(--muted);
+  text-align: center;
+  max-width: 18em;
+  line-height: 1.35;
+}
+
+.wallet-modal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  margin: 0 0 0.85em;
+}
+
+.wallet-modal-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7em;
+  width: 100%;
+  min-height: 3.1em;
+  padding: 0.65em 1em;
+  border: 1px solid var(--brown);
+  background: #fff;
+  color: var(--brown);
+  font: inherit;
+  font-weight: 700;
+  font-size: 1em;
+  line-height: 1.2;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.wallet-modal-item:hover {
+  background: var(--neon-soft);
+}
+
+.wallet-modal-item:focus-visible {
+  outline: 2px solid var(--neon-deep);
+  outline-offset: 2px;
+}
+
+/* Fixed icon slot so text lines up across wallets */
+.wallet-modal-icon,
+.wallet-modal-icon-fallback {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  border-radius: 8px;
+  object-fit: contain;
+  display: block;
+}
+
+.wallet-modal-icon-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--neon);
+  border: 1px solid var(--brown);
+  font-size: 0.9em;
+}
+
+.wallet-modal-item-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  min-width: 7em;
+  text-align: left;
+  gap: 0.1em;
+}
+
+.wallet-modal-item-name {
+  display: block;
+  letter-spacing: 0.01em;
+  line-height: 1.15;
+}
+
+.wallet-modal-item-note {
+  display: block;
+  font-size: 0.68em;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
+.wallet-modal-empty {
+  margin: 0.4em 0;
+  color: var(--muted);
+  text-align: center;
+}
+
+.wallet-modal-cancel {
+  width: 100%;
+  margin: 0 auto;
+  display: block;
+}
+
+body.wallet-modal-open {
+  overflow: hidden;
+}
+
+.raffle-prize-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  margin: 0 !important;
+  max-width: none !important;
+  border: none !important;
+}
+
+.raffle-prize-frame img:hover {
+  border: none !important;
+}
+
+.raffle-prize-badge {
+  position: absolute;
+  top: 0.45em;
+  left: 0.45em;
+  font-size: 0.65em;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 0.2em 0.45em;
+  background: var(--neon);
+  color: var(--brown-dark);
+  border: 1px solid var(--brown);
+}
+
+.raffle-prize-id {
+  position: absolute;
+  left: 0.4em;
+  bottom: 0.4em;
+  font-size: 0.78em;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
+  background: rgba(0, 0, 0, 0.35);
+  padding: 0.12em 0.4em;
+  border-radius: 4px;
+}
+
+.raffle-prize-caption {
+  margin: 0.55em 0 0.15em;
+  color: var(--muted);
+}
+
+.raffle-head {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45em;
+  margin: 0.4em 0 0.3em;
+  text-align: center;
+}
+
+.raffle-title {
+  margin: 0;
+  font-size: 1.15em;
+  color: var(--brown);
+  text-align: center;
+}
+
+.raffle-prize {
+  margin: 0.25em 0 0;
+  color: var(--muted);
+  text-align: center;
+}
+
+.raffle-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35em;
+  justify-content: center;
+  align-items: center;
+}
+
+.raffle-pill {
+  display: inline-block;
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 0.28em 0.55em;
+  border: 1px solid var(--brown);
+  background: var(--cream);
+  color: var(--brown);
+}
+
+.raffle-pill.is-open {
+  background: var(--neon);
+  border-color: var(--neon-deep);
+  color: var(--brown-dark);
+}
+
+.raffle-pill.is-closed {
+  background: #eee;
+  color: var(--muted);
+}
+
+.raffle-pill-cost {
+  background: #fff;
+}
+
+.raffle-desc {
+  margin: 0.35em 0 0.75em;
+}
+
+/* Raffle countdown — compact under OpenSea */
+.raffle-countdown {
+  margin: 0.65em auto 0.25em;
+  max-width: 16.5em;
+  text-align: center;
+}
+
+.raffle-countdown-sm .raffle-countdown-label {
+  margin: 0 0 0.3em;
+  font-size: 0.68em;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.raffle-countdown-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.28em;
+}
+
+.raffle-cd-cell {
+  border: 1.5px solid var(--brown);
+  background: linear-gradient(180deg, #fffef9, #f4ffc2);
+  padding: 0.28em 0.12em 0.22em;
+}
+
+.raffle-cd-num {
+  display: block;
+  font-size: 0.95em;
+  line-height: 1.1;
+  color: var(--brown);
+  font-variant-numeric: tabular-nums;
+}
+
+.raffle-cd-unit {
+  display: block;
+  margin-top: 0.08em;
+  font-size: 0.55em;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.raffle-countdown-end {
+  margin: 0.35em 0 0;
+  color: #a00;
+  font-weight: 700;
+  font-size: 0.8em;
+}
+
+.raffle-countdown.is-ended .raffle-cd-cell {
+  opacity: 0.55;
+}
+
+.raffle-metrics {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+  border: 1px solid var(--cream-mid);
+  background: #fffef9;
+  margin-bottom: 0.9em;
+  max-width: 16em;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.raffle-metric {
+  padding: 0.55em 0.4em;
+  text-align: center;
+  border-right: 1px solid var(--cream-mid);
+}
+
+.raffle-metric:last-child {
+  border-right: none;
+}
+
+.raffle-metric.highlight {
+  background: linear-gradient(180deg, #f4ffc2, #eef7a8);
+}
+
+.raffle-metric-label {
+  display: block;
+  font-size: 0.68em;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin-bottom: 0.2em;
+}
+
+.raffle-metric-val {
+  font-size: 1.05em;
+  color: var(--brown);
+}
+
+.raffle-enter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55em;
+  margin: 0.4em 0;
+}
+
+/* Shake when click but can't enter (no wallet / low $MOZE / closed) */
+#raffle-enter.is-shake {
+  animation: raffle-btn-shake 0.45s ease-in-out;
+}
+
+@keyframes raffle-btn-shake {
+  0%, 100% { transform: translateX(0); }
+  12% { transform: translateX(-7px) rotate(-1deg); }
+  24% { transform: translateX(7px) rotate(1deg); }
+  36% { transform: translateX(-6px); }
+  48% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  72% { transform: translateX(4px); }
+  84% { transform: translateX(-2px); }
+  96% { transform: translateX(2px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #raffle-enter.is-shake {
+    animation: none;
+    outline: 2px solid #a00;
+  }
+}
+
+.raffle-qty {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+}
+
+.raffle-qty input {
+  width: 3.2em;
+  text-align: center;
+  font-size: 1em;
+  font-weight: 700;
+  padding: 0.35em 0.2em;
+  border: 1px solid var(--brown);
+  background: #fff;
+  color: var(--brown);
+}
+
+.raffle-cost-line {
+  margin: 0.15em 0 0.35em;
+  color: var(--muted);
+}
+
+.raffle-top {
+  margin-top: 0.85em;
+  padding-top: 0.6em;
+  border-top: 1px solid var(--cream-mid);
+}
+
+.raffle-top[hidden] {
+  display: none !important;
+}
+
+.raffle-top-label {
+  margin: 0 0 0.35em;
+  text-align: center;
+}
+
+.raffle-top-hint {
+  margin: 0 0 0.5em;
+  text-align: center;
+  color: var(--muted);
+}
+
+.raffle-top-list {
+  margin: 0 auto;
+  padding: 0;
+  max-width: 24em;
+  font-size: 0.9em;
+  list-style: none;
+  /* ~10 rows visible, rest scroll */
+  max-height: 22.5em;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--cream-mid);
+  background: #fff;
+}
+
+.raffle-top-list:empty {
+  border: none;
+  max-height: none;
+}
+
+.raffle-top-list li {
+  margin: 0;
+  padding: 0.4em 0.55em;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75em;
+  align-items: baseline;
+  border-bottom: 1px solid var(--cream-mid);
+  background: #fffef9;
+  text-align: left;
+}
+
+.raffle-top-list li:last-child {
+  border-bottom: none;
+}
+
+.raffle-top-list .raffle-entry-rank {
+  color: var(--muted);
+  font-size: 0.85em;
+  min-width: 1.5em;
+}
+
+.raffle-top-list .raffle-entry-addr {
+  flex: 1;
+  font-family: ui-monospace, monospace;
+  font-size: 0.92em;
+}
+
+.raffle-top-list .raffle-entry-tickets {
+  font-weight: 700;
+  color: var(--brown);
+  white-space: nowrap;
+}
+
+.raffle-top-empty {
+  margin: 0.4em 0 0;
+  text-align: center;
+  color: var(--muted);
+}
+
+@media (max-width: 560px) {
+  .raffle-metrics {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .raffle-metric:nth-child(2) {
+    border-right: none;
+  }
+  .raffle-metric:nth-child(1),
+  .raffle-metric:nth-child(2) {
+    border-bottom: 1px solid var(--cream-mid);
+  }
+  .stake-scan-card {
+    width: min(30vw, 100px);
+  }
+}
+
+/* Fixed graffiti stickers — bottom left / bottom right (Left.png / Right.png) */
+.graffiti-deco {
+  pointer-events: none;
+  user-select: none;
+}
+
+.graffiti-deco-img {
+  position: fixed;
+  /* Above green footer so stickers are never painted under it */
+  z-index: 4;
+  bottom: 1.25rem; /* JS lifts further when footer is in view */
+  width: clamp(150px, 18vw, 250px);
+  height: auto;
+  max-width: none !important;
+  margin: 0 !important;
+  border: none !important;
+  display: block;
+  opacity: 1;
+  filter: none;
+  image-rendering: auto;
+  transition: bottom 0.15s ease-out;
+  will-change: bottom;
+}
+
+.graffiti-deco-img:hover {
+  border: none !important;
+}
+
+.graffiti-deco-left {
+  left: max(0.35rem, env(safe-area-inset-left));
+}
+
+.graffiti-deco-right {
+  right: max(0.35rem, env(safe-area-inset-right));
+}
+
+@media (max-width: 960px) {
+  .graffiti-deco-img {
+    width: clamp(110px, 15vw, 170px);
+    bottom: 0.6rem;
+  }
+}
+
+/* Hide on narrow screens so they don't cover content */
+@media (max-width: 720px) {
+  .graffiti-deco {
+    display: none;
+  }
 }
 
 a {
@@ -1489,6 +2181,8 @@ li { margin: 0.3em 0; }
 .mint-info { flex: 1; min-width: 0; }
 
 .site-footer {
+  position: relative;
+  z-index: 1;
   margin-top: 2em;
   padding: 2.5em 1.5em 2em;
   background: #C6E607;

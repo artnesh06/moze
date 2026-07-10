@@ -56,6 +56,7 @@ function fmtInt(n) {
   return Number(n).toLocaleString('en-US');
 }
 
+/** This browser only — NOT global collection staked (that's API positions count). */
 function countLocalStaked() {
   let stakedCount = 0;
   try {
@@ -67,6 +68,33 @@ function countLocalStaked() {
     }
   } catch { /* ignore */ }
   return stakedCount;
+}
+
+/** Last known global STAKED (NFT positions) from /v1/stats — avoids flashing local-only count. */
+const STAKED_CACHE_KEY = 'moze-stats-staked-v1';
+
+function getCachedGlobalStaked() {
+  try {
+    const n = Number(localStorage.getItem(STAKED_CACHE_KEY));
+    return Number.isFinite(n) && n >= 0 ? n : null;
+  } catch {
+    return null;
+  }
+}
+
+function setCachedGlobalStaked(n) {
+  const v = Number(n);
+  if (!Number.isFinite(v) || v < 0) return;
+  try {
+    localStorage.setItem(STAKED_CACHE_KEY, String(Math.floor(v)));
+  } catch { /* ignore */ }
+}
+
+/** Prefer last API total; never flash tiny local-only number over known global. */
+function displayStakedHint() {
+  const cached = getCachedGlobalStaked();
+  if (cached != null) return cached;
+  return countLocalStaked();
 }
 
 const MINT_SUPPLY_MAX = 1000;
@@ -103,8 +131,10 @@ async function refreshMintStats(force = false) {
 
   let minted = 0;
   let holders = 0;
-  let staked = countLocalStaked();
-  set('mint-staked', String(staked));
+  // Global STAKED = total NFT positions in API DB (not # of leaderboard wallets).
+  // Use last cached API value first so we don't flash local-only "3".
+  let staked = displayStakedHint();
+  if (staked > 0) set('mint-staked', fmtInt(staked));
   set('mint-listed', '—');
 
   let liveOk = false;
@@ -133,7 +163,8 @@ async function refreshMintStats(force = false) {
         if (s.sales != null) set('mint-sales', fmtInt(s.sales));
         if (s.listed != null && s.listed !== '') set('mint-listed', fmtInt(s.listed));
         if (s.staked != null) {
-          staked = Number(s.staked) || staked;
+          staked = Number(s.staked) || 0;
+          setCachedGlobalStaked(staked);
           set('mint-staked', fmtInt(staked));
         }
         if (s.supplyMax != null) {
@@ -2587,8 +2618,8 @@ function renderStakeGrid() {
   updateCoverflowTransforms();
   updateStakeButtons();
   updateDashboard();
-  const stEl = document.getElementById('mint-staked');
-  if (stEl) stEl.textContent = String(countLocalStaked());
+  // Do NOT overwrite collection STAKED with this-browser local count
+  // (that caused the flash: 3 → 22 after Refresh).
 }
 
 function updateStakeButtons() {

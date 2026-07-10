@@ -2156,50 +2156,60 @@ async function fetchOwnedTokenIds(walletProvider, owner) {
   };
 
   try {
-    // 1) balanceOf — empty wallet exits immediately
+    // 1) balanceOf via wallet provider first (same network as MetaMask), then public RPC
     let n = 0;
-    try {
-      const read = getRobinhoodReadProvider();
-      const contract = new ethers.Contract(MOZE_CA, ERC721_ABI, read);
-      n = Number(await withRetry(() => contract.balanceOf(ownerLc), 2, 200));
-      if (!n) {
-        setScanAtmosphereProgress('No Moze in this wallet');
-        return remember([]);
+    const balProviders = [];
+    if (walletProvider) balProviders.push(walletProvider);
+    balProviders.push(getRobinhoodReadProvider());
+    for (const prov of balProviders) {
+      try {
+        const contract = new ethers.Contract(MOZE_CA, ERC721_ABI, prov);
+        n = Number(await withRetry(() => contract.balanceOf(ownerLc), 2, 250));
+        if (Number.isFinite(n)) break;
+      } catch (err) {
+        errors.push(`balance: ${err?.shortMessage || err?.message || err}`);
       }
-      setStakeStatus(`Hang tight — loading your Moze… (${n} on-chain)`);
+    }
+    if (!n) {
+      setScanAtmosphereProgress('No Moze in this wallet');
+      return remember([]);
+    }
+    setStakeStatus(`Hang tight — loading your Moze… (${n} on-chain)`);
+
+    // 2) Fast path: token IDs already known from soft-stake positions on API (instant)
+    try {
+      if (apiOnline === null) await pingApi();
+      if (apiOnline) {
+        const stake = await apiFetch(`/v1/stake/${encodeURIComponent(ownerLc)}`);
+        const posIds = (stake?.positions || [])
+          .map((p) => Number(p.tokenId ?? p.token_id))
+          .filter((x) => Number.isFinite(x));
+        if (posIds.length > 0) {
+          // If staked count matches balance, we're done (common case: 1 NFT staked)
+          if (posIds.length === n) {
+            setScanAtmosphereProgress('Loaded from stake state');
+            return remember(posIds);
+          }
+          // Otherwise use as partial — still better than nothing if scan fails
+          if (posIds.length >= n) return remember(posIds.slice(0, n));
+        }
+      }
     } catch (err) {
-      errors.push(`RPC balance: ${err?.shortMessage || err?.message || err}`);
+      errors.push(`stake-api: ${err?.message || err}`);
     }
 
-    // 2) On-chain scan via wallet provider + public RPC (API is often too slow)
+    // 3) Full on-chain scan (wallet provider + public RPC) — do NOT call hanging /v1/wallet/tokens
     setScanAtmosphereProgress('Scanning on-chain…');
     try {
-      const ids = await scanOwnedInBrowser(ownerLc, n || undefined, walletProvider);
+      const ids = await scanOwnedInBrowser(ownerLc, n, walletProvider);
       if (ids.length) return remember(ids);
-      if (n === 0) return remember([]);
     } catch (err) {
       errors.push(`RPC scan: ${err?.shortMessage || err?.message || err}`);
     }
 
-    // 3) Short API fallback only (server may hang; keep it brief)
-    try {
-      setScanAtmosphereProgress('Trying Moze API…');
-      const ids = await fetchOwnedViaApiBase(
-        API_BASE || 'https://api.mozestreet.art',
-        ownerLc,
-        12000
-      );
-      if (ids.length || n === 0) return remember(ids);
-    } catch (err) {
-      errors.push(`API: ${err?.message || err}`);
-    }
-
-    // 4) If we know balanceOf > 0 but can't list IDs, still fail clearly
     console.error('fetchOwnedTokenIds failed', errors);
     throw new Error(
-      n > 0
-        ? `Found ${n} Moze on-chain but could not list token IDs. Reconnect or try again in a moment.`
-        : 'Could not read Moze balance. Confirm MetaMask network is Robinhood (4663), then reconnect.'
+      `Found ${n} Moze on-chain but could not list token IDs. Try Disconnect → Connect again.`
     );
   } finally {
     stopScanAtmosphere();

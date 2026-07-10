@@ -2838,32 +2838,51 @@ function clampRaffleQty(n) {
   return Math.max(1, Math.min(room, Math.floor(Number(n) || 1)));
 }
 
-function pad2(n) {
-  return String(Math.max(0, Math.floor(n))).padStart(2, '0');
+/** Normalize epoch to ms (handles seconds accidentally stored). */
+function toMs(ts) {
+  let n = Number(ts);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  if (n < 1e12) n *= 1000;
+  return Math.floor(n);
 }
 
-/** Live day / hour / min / sec countdown to raffle.endsAt */
+function setRaffleCdNum(id, value, { spin = true } = {}) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  // Slot animation (same as stake dashboard)
+  setSlotInt(el, Math.max(0, Math.floor(Number(value) || 0)), { spin });
+}
+
+/** Live day / hour / min / sec countdown to raffle.endsAt — starts now, ends in 14d */
 function tickRaffleCountdown() {
-  const endsAt = Number(raffleState?.endsAt) || 0;
+  let endsAt = toMs(raffleState?.endsAt);
+  const startsAt = toMs(raffleState?.startsAt);
   const root = document.getElementById('raffle-countdown');
   const endMsg = document.getElementById('raffle-countdown-end');
-  const set = (id, v) => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = v;
-  };
-  if (!endsAt || !root) {
-    set('raffle-cd-days', '—');
-    set('raffle-cd-hours', '—');
-    set('raffle-cd-mins', '—');
-    set('raffle-cd-secs', '—');
+  if (!root) return;
+
+  // Fallback: if API missing endsAt, use 14d from startsAt or now
+  if (!endsAt) {
+    const base = startsAt || Date.now();
+    endsAt = base + 14 * 24 * 60 * 60 * 1000;
+  }
+
+  const now = Date.now();
+  // Not started yet (shouldn't happen — we open immediately)
+  if (startsAt && now < startsAt) {
+    setRaffleCdNum('raffle-cd-days', 0, { spin: false });
+    setRaffleCdNum('raffle-cd-hours', 0, { spin: false });
+    setRaffleCdNum('raffle-cd-mins', 0, { spin: false });
+    setRaffleCdNum('raffle-cd-secs', 0, { spin: true });
     return;
   }
-  const left = endsAt - Date.now();
+
+  const left = endsAt - now;
   if (left <= 0) {
-    set('raffle-cd-days', '00');
-    set('raffle-cd-hours', '00');
-    set('raffle-cd-mins', '00');
-    set('raffle-cd-secs', '00');
+    setRaffleCdNum('raffle-cd-days', 0, { spin: false });
+    setRaffleCdNum('raffle-cd-hours', 0, { spin: false });
+    setRaffleCdNum('raffle-cd-mins', 0, { spin: false });
+    setRaffleCdNum('raffle-cd-secs', 0, { spin: false });
     root.classList.add('is-ended');
     if (endMsg) endMsg.hidden = false;
     if (raffleState) raffleState.open = false;
@@ -2876,6 +2895,7 @@ function tickRaffleCountdown() {
     document.getElementById('raffle-enter')?.setAttribute('disabled', 'disabled');
     return;
   }
+
   root.classList.remove('is-ended');
   if (endMsg) endMsg.hidden = true;
   const sec = Math.floor(left / 1000);
@@ -2883,10 +2903,11 @@ function tickRaffleCountdown() {
   const hours = Math.floor((sec % 86400) / 3600);
   const mins = Math.floor((sec % 3600) / 60);
   const secs = sec % 60;
-  set('raffle-cd-days', pad2(days));
-  set('raffle-cd-hours', pad2(hours));
-  set('raffle-cd-mins', pad2(mins));
-  set('raffle-cd-secs', pad2(secs));
+  // Spin all on big changes; secs always soft-spin like pending
+  setRaffleCdNum('raffle-cd-days', days, { spin: true });
+  setRaffleCdNum('raffle-cd-hours', hours, { spin: true });
+  setRaffleCdNum('raffle-cd-mins', mins, { spin: true });
+  setRaffleCdNum('raffle-cd-secs', secs, { spin: true });
 }
 
 function startRaffleCountdown() {
@@ -2922,9 +2943,9 @@ function renderRaffle(data) {
     document.getElementById('raffle-status-pill')?.classList.remove('is-open');
     document.getElementById('raffle-status-pill')?.classList.add('is-closed');
     setText('raffle-cost-pill', '—');
-    setText('raffle-total-tickets', '0');
-    setText('raffle-entrants', '0');
-    setText('raffle-your-tickets', '0');
+    setRaffleCdNum('raffle-total-tickets', 0, { spin: false });
+    setRaffleCdNum('raffle-entrants', 0, { spin: false });
+    setRaffleCdNum('raffle-your-tickets', 0, { spin: false });
     setText('raffle-your-moze', '—');
     document.getElementById('raffle-enter')?.setAttribute('disabled', 'disabled');
     updateRaffleCostLine();
@@ -2947,9 +2968,9 @@ function renderRaffle(data) {
     pill.classList.toggle('is-closed', !open);
   }
   setText('raffle-cost-pill', `${formatMoze(raffleState.ticketCost)} $MOZE / ticket`);
-  setText('raffle-total-tickets', String(raffleState.totalTickets ?? 0));
-  setText('raffle-entrants', String(raffleState.entrants ?? 0));
-  setText('raffle-your-tickets', String(raffleState.yourTickets ?? 0));
+  setRaffleCdNum('raffle-total-tickets', raffleState.totalTickets ?? 0, { spin: true });
+  setRaffleCdNum('raffle-entrants', raffleState.entrants ?? 0, { spin: true });
+  setRaffleCdNum('raffle-your-tickets', raffleState.yourTickets ?? 0, { spin: true });
 
   // Total soft $MOZE (pending + claimed) — what you spend on tickets
   let moze = raffleState.yourMoze;

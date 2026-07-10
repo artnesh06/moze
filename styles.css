@@ -709,61 +709,46 @@ body.wallet-modal-open {
   margin: 0.35em 0 0.75em;
 }
 
-/* Raffle countdown — compact under OpenSea */
+/* Raffle countdown + entries — same cards as stake dashboard */
 .raffle-countdown {
-  margin: 0.65em auto 0.25em;
-  max-width: 16.5em;
+  margin: 0.75em auto 0.35em;
+  max-width: 22em;
   text-align: center;
 }
 
-.raffle-countdown-sm .raffle-countdown-label {
-  margin: 0 0 0.3em;
-  font-size: 0.68em;
+.raffle-countdown-label {
+  margin: 0 0 0.4em;
+  font-size: 0.72em;
   font-weight: 700;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted);
 }
 
-.raffle-countdown-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.28em;
+.raffle-cd-dash {
+  margin: 0 auto;
+  max-width: 100%;
 }
 
-.raffle-cd-cell {
-  border: 1.5px solid var(--brown);
-  background: linear-gradient(180deg, #fffef9, #f4ffc2);
-  padding: 0.28em 0.12em 0.22em;
-}
-
-.raffle-cd-num {
-  display: block;
-  font-size: 0.95em;
-  line-height: 1.1;
-  color: var(--brown);
-  font-variant-numeric: tabular-nums;
-}
-
-.raffle-cd-unit {
-  display: block;
-  margin-top: 0.08em;
-  font-size: 0.55em;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--muted);
-  font-weight: 700;
+.raffle-entries-dash {
+  margin: 0.85em auto 0.75em;
+  max-width: 22em;
 }
 
 .raffle-countdown-end {
-  margin: 0.35em 0 0;
+  margin: 0.45em 0 0;
   color: #a00;
   font-weight: 700;
-  font-size: 0.8em;
+  font-size: 0.85em;
 }
 
-.raffle-countdown.is-ended .raffle-cd-cell {
+.raffle-countdown.is-ended .stake-stat {
   opacity: 0.55;
+}
+
+/* legacy entries banner (if any leftover) */
+.raffle-entries-banner {
+  display: none;
 }
 
 .raffle-metrics {

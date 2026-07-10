@@ -12,7 +12,7 @@
   <meta name="twitter:site" content="@mozenft_">
   <link rel="icon" href="assets/ico.png" type="image/png">
   <meta name="theme-color" content="#5c1a2e">
-  <link rel="stylesheet" href="styles.css?v=63">
+  <link rel="stylesheet" href="styles.css?v=64">
 </head>
 <body>
 
@@ -174,43 +174,50 @@
             rel="noopener"
           >View #30 on OpenSea ↗</a>
 
-          <!-- Compact countdown under OpenSea -->
-          <div class="raffle-countdown raffle-countdown-sm" id="raffle-countdown" aria-live="polite">
+          <!-- Countdown — same style as stake stats -->
+          <div class="raffle-countdown" id="raffle-countdown" aria-live="polite">
             <p class="raffle-countdown-label">Ends in</p>
-            <div class="raffle-countdown-grid">
-              <div class="raffle-cd-cell">
-                <strong id="raffle-cd-days" class="raffle-cd-num">00</strong>
-                <span class="raffle-cd-unit">Days</span>
+            <div class="stake-dashboard raffle-cd-dash">
+              <div class="stake-stat">
+                <span class="stake-stat-label">Days</span>
+                <strong id="raffle-cd-days" class="slot-num" data-slot="0">0</strong>
+                <span class="stake-stat-unit">left</span>
               </div>
-              <div class="raffle-cd-cell">
-                <strong id="raffle-cd-hours" class="raffle-cd-num">00</strong>
-                <span class="raffle-cd-unit">Hours</span>
+              <div class="stake-stat">
+                <span class="stake-stat-label">Hours</span>
+                <strong id="raffle-cd-hours" class="slot-num" data-slot="0">0</strong>
+                <span class="stake-stat-unit">left</span>
               </div>
-              <div class="raffle-cd-cell">
-                <strong id="raffle-cd-mins" class="raffle-cd-num">00</strong>
-                <span class="raffle-cd-unit">Mins</span>
+              <div class="stake-stat highlight">
+                <span class="stake-stat-label">Mins</span>
+                <strong id="raffle-cd-mins" class="slot-num" data-slot="0">0</strong>
+                <span class="stake-stat-unit">left</span>
               </div>
-              <div class="raffle-cd-cell">
-                <strong id="raffle-cd-secs" class="raffle-cd-num">00</strong>
-                <span class="raffle-cd-unit">Secs</span>
+              <div class="stake-stat highlight">
+                <span class="stake-stat-label">Secs</span>
+                <strong id="raffle-cd-secs" class="slot-num" data-slot="0">0</strong>
+                <span class="stake-stat-unit">left</span>
               </div>
             </div>
             <p id="raffle-countdown-end" class="fine raffle-countdown-end" hidden>Raffle ended</p>
           </div>
         </div>
 
-        <div class="raffle-entries-banner" aria-live="polite">
-          <div class="raffle-entries-item">
-            <span class="raffle-entries-label">Total entries</span>
-            <strong id="raffle-total-tickets" class="raffle-entries-num">0</strong>
+        <div class="stake-dashboard raffle-entries-dash" aria-live="polite">
+          <div class="stake-stat">
+            <span class="stake-stat-label">Total entries</span>
+            <strong id="raffle-total-tickets" class="slot-num" data-slot="0">0</strong>
+            <span class="stake-stat-unit">tickets</span>
           </div>
-          <div class="raffle-entries-item">
-            <span class="raffle-entries-label">Wallets in</span>
-            <strong id="raffle-entrants" class="raffle-entries-num">0</strong>
+          <div class="stake-stat">
+            <span class="stake-stat-label">Wallets in</span>
+            <strong id="raffle-entrants" class="slot-num" data-slot="0">0</strong>
+            <span class="stake-stat-unit">wallets</span>
           </div>
-          <div class="raffle-entries-item">
-            <span class="raffle-entries-label">Your entries</span>
-            <strong id="raffle-your-tickets" class="raffle-entries-num">0</strong>
+          <div class="stake-stat highlight">
+            <span class="stake-stat-label">Your entries</span>
+            <strong id="raffle-your-tickets" class="slot-num" data-slot="0">0</strong>
+            <span class="stake-stat-unit">tickets</span>
           </div>
         </div>
 
@@ -457,6 +464,6 @@
     // Optional: override API for local backend
     // window.MOZE_API = 'http://localhost:3000';
   </script>
-  <script src="script.js?v=63"></script>
+  <script src="script.js?v=64"></script>
 </body>
 </html>

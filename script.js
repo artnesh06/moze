@@ -239,7 +239,7 @@ function setSnapshotStatus(msg, kind = '') {
   el.classList.toggle('is-ok', kind === 'ok');
 }
 
-/** Download holders snapshot CSV from moze-api (or local build fallback). */
+/** Download holders snapshot CSV from moze-api (or on-chain fallback). */
 async function snapshotHolders() {
   const btn = document.getElementById('holders-snapshot');
   if (btn) btn.disabled = true;
@@ -253,22 +253,53 @@ async function snapshotHolders() {
     let source = 'api';
 
     if (apiOnline) {
-      const data = await apiFetch('/v1/holders');
-      wallets = Array.isArray(data.wallets) ? data.wallets : [];
-      supply = data.supply || supply;
-      updatedAt = data.updatedAt || updatedAt;
-    } else if (typeof ethers !== 'undefined') {
-      setSnapshotStatus('API offline — scanning on-chain (slow)…');
+      // Kick server scan, then poll (long wait=1 often times out behind reverse proxy)
+      setSnapshotStatus('Starting holders scan…');
+      try {
+        await apiFetch('/v1/holders?force=1');
+      } catch (e) {
+        console.warn('[snapshot] force kick failed', e);
+      }
+
+      const maxPoll = 40; // ~2 min @ 3s
+      for (let i = 0; i < maxPoll; i += 1) {
+        try {
+          const data = await apiFetch('/v1/holders');
+          let list = Array.isArray(data.wallets) ? data.wallets : [];
+          if (!list.length && Array.isArray(data.rows)) list = data.rows;
+          supply = data.supply || supply;
+          updatedAt = data.updatedAt || updatedAt;
+          if (list.length) {
+            wallets = list;
+            source = 'api';
+            break;
+          }
+          const scanning = !!data.scanning;
+          setSnapshotStatus(
+            scanning
+              ? `Scanning holders… ${i + 1}/${maxPoll} (server)`
+              : `Waiting for holders cache… ${i + 1}/${maxPoll}`,
+            ''
+          );
+        } catch (pollErr) {
+          console.warn('[snapshot] poll', pollErr);
+        }
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+    }
+
+    if (!wallets.length && typeof ethers !== 'undefined') {
+      setSnapshotStatus('API empty — scanning from your browser (slow)…');
       source = 'on-chain';
-      const map = await buildHoldersMap();
+      const map = await buildHoldersMap({ allHolders: true });
       wallets = (map.rows || []).map((r) => ({ addr: r.addr, held: r.held }));
       supply = map.supply || supply;
       updatedAt = map.scannedAt || updatedAt;
-    } else {
-      throw new Error('No API and no wallet library for on-chain scan.');
     }
 
-    if (!wallets.length) throw new Error('No holders returned.');
+    if (!wallets.length) {
+      throw new Error('No holders returned. Try again in a minute (scan may still be running).');
+    }
 
     // sort by held desc
     wallets = [...wallets].sort(
@@ -288,7 +319,7 @@ async function snapshotHolders() {
       `# source=${source} supply=${supply} wallets=${wallets.length} at=${when.toISOString()}\n` +
       `# site=https://www.mozestreet.art\n`;
     downloadTextFile(`moze-holders-${stamp}.csv`, header + lines.join('\n') + '\n');
-    setSnapshotStatus(`Saved ${wallets.length} wallets · ${source}`, 'ok');
+    setSnapshotStatus(`Saved ${wallets.length} wallets · CSV downloaded · ${source}`, 'ok');
   } catch (err) {
     console.error(err);
     setSnapshotStatus(err?.message || 'Snapshot failed.', 'error');
@@ -792,7 +823,12 @@ function softStakePointsFor(addr) {
   }
 }
 
-async function buildHoldersMap() {
+/**
+ * Full collection ownerOf scan in the browser.
+ * @param {{ allHolders?: boolean }} opts — allHolders=true for CSV snapshot (default).
+ *   false = only wallets with local soft $MOZE (legacy leaderboard fallback).
+ */
+async function buildHoldersMap({ allHolders = true } = {}) {
   const read = getRobinhoodReadProvider();
   const contract = new ethers.Contract(MOZE_CA, ERC721_ABI, read);
   let supply = 1000;
@@ -818,6 +854,12 @@ async function buildHoldersMap() {
       if (!o || o === '0x0000000000000000000000000000000000000000') continue;
       counts.set(o, (counts.get(o) || 0) + 1);
     }
+    if (start === 1 || start % 200 === 1) {
+      setSnapshotStatus(
+        `Scanning on-chain… ${Math.min(start + batch - 1, maxId)}/${maxId}`,
+        ''
+      );
+    }
   }
   // also try token 0
   try {
@@ -827,15 +869,22 @@ async function buildHoldersMap() {
     }
   } catch { /* no token 0 */ }
 
-  // Client fallback: stakers only (soft points from local stake state)
-  const rows = [...counts.entries()]
-    .map(([addr, held]) => ({
-      addr,
-      held,
-      softMoze: softStakePointsFor(addr),
-    }))
-    .filter((r) => r.softMoze > 0)
-    .sort((a, b) => b.softMoze - a.softMoze || b.held - a.held || a.addr.localeCompare(b.addr));
+  let rows = [...counts.entries()].map(([addr, held]) => ({
+    addr,
+    held,
+    softMoze: softStakePointsFor(addr),
+  }));
+  if (!allHolders) {
+    rows = rows.filter((r) => r.softMoze > 0);
+    rows.sort(
+      (a, b) =>
+        b.softMoze - a.softMoze || b.held - a.held || a.addr.localeCompare(b.addr)
+    );
+  } else {
+    rows.sort(
+      (a, b) => b.held - a.held || a.addr.localeCompare(b.addr)
+    );
+  }
 
   return { rows, supply, scannedAt: Date.now() };
 }

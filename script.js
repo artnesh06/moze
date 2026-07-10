@@ -2067,52 +2067,71 @@ async function fetchOwnedViaApi(owner) {
   return fetchOwnedViaApiBase(base, owner, 45000);
 }
 
-/** Browser-side ownerOf scan (parallel with API). */
-async function scanOwnedInBrowser(ownerLc, nHint) {
-  const read = getRobinhoodReadProvider();
-  const contract = new ethers.Contract(MOZE_CA, ERC721_ABI, read);
-  let n = nHint;
-  if (n == null) n = Number(await withRetry(() => contract.balanceOf(ownerLc), 2, 200));
-  if (!n) return [];
+/**
+ * Resolve owned token IDs via RPC.
+ * Prefer wallet provider (same as MetaMask network), fall back to public Robinhood RPC.
+ */
+async function scanOwnedInBrowser(ownerLc, nHint, walletProvider = null) {
+  const providers = [];
+  if (walletProvider) providers.push(walletProvider);
+  providers.push(getRobinhoodReadProvider());
 
-  try {
-    const ids = await Promise.all(
-      Array.from({ length: n }, (_, i) =>
-        contract.tokenOfOwnerByIndex(ownerLc, i).then((x) => Number(x))
-      )
-    );
-    if (ids.length === n && ids.every(Number.isFinite)) return ids;
-  } catch { /* not enumerable */ }
+  let lastErr = null;
+  for (const prov of providers) {
+    try {
+      const contract = new ethers.Contract(MOZE_CA, ERC721_ABI, prov);
+      let n = nHint;
+      if (n == null || !Number.isFinite(n)) {
+        n = Number(await withRetry(() => contract.balanceOf(ownerLc), 2, 200));
+      }
+      if (!n) return [];
 
-  let supply = 1000;
-  try {
-    const ts = Number(await contract.totalSupply());
-    if (ts > 0) supply = Math.min(1000, Math.max(ts + 5, ts));
-  } catch { /* 1000 */ }
+      // Enumerable (fast)
+      try {
+        const ids = await Promise.all(
+          Array.from({ length: n }, (_, i) =>
+            contract.tokenOfOwnerByIndex(ownerLc, i).then((x) => Number(x))
+          )
+        );
+        if (ids.length === n && ids.every(Number.isFinite)) return ids;
+      } catch { /* not enumerable */ }
 
-  const found = [];
-  const batch = 120;
-  const maxId = Math.max(supply, 1000);
-  for (let start = 1; start <= maxId && found.length < n; start += batch) {
-    const chunk = [];
-    for (let id = start; id < start + batch && id <= maxId; id += 1) {
-      chunk.push(
-        contract
-          .ownerOf(id)
-          .then((o) => (String(o).toLowerCase() === ownerLc ? id : null))
-          .catch(() => null)
-      );
-    }
-    // eslint-disable-next-line no-await-in-loop
-    const results = await Promise.all(chunk);
-    for (const id of results) {
-      if (id != null) found.push(id);
-    }
-    if (start === 1 || start % 240 === 1) {
-      setScanAtmosphereProgress(`Matching ownership · ${found.length}/${n}`);
+      let supply = 1000;
+      try {
+        const ts = Number(await contract.totalSupply());
+        if (ts > 0) supply = Math.min(1000, Math.max(ts + 5, ts));
+      } catch { /* 1000 */ }
+
+      const found = [];
+      const batch = 80;
+      const maxId = Math.max(supply, 1000);
+      for (let start = 1; start <= maxId && found.length < n; start += batch) {
+        const chunk = [];
+        for (let id = start; id < start + batch && id <= maxId; id += 1) {
+          chunk.push(
+            contract
+              .ownerOf(id)
+              .then((o) => (String(o).toLowerCase() === ownerLc ? id : null))
+              .catch(() => null)
+          );
+        }
+        // eslint-disable-next-line no-await-in-loop
+        const results = await Promise.all(chunk);
+        for (const id of results) {
+          if (id != null) found.push(id);
+        }
+        if (start === 1 || start % 160 === 1) {
+          setScanAtmosphereProgress(`Matching ownership · ${found.length}/${n}`);
+        }
+      }
+      if (found.length) return found;
+      // balance > 0 but none found — try next provider
+    } catch (err) {
+      lastErr = err;
     }
   }
-  return found;
+  if (lastErr) throw lastErr;
+  return [];
 }
 
 async function fetchOwnedTokenIds(walletProvider, owner) {
@@ -2152,34 +2171,36 @@ async function fetchOwnedTokenIds(walletProvider, owner) {
       errors.push(`RPC balance: ${err?.shortMessage || err?.message || err}`);
     }
 
-    // 2) Browser RPC scan first (works when API is slow/hanging)
+    // 2) On-chain scan via wallet provider + public RPC (API is often too slow)
     setScanAtmosphereProgress('Scanning on-chain…');
     try {
-      const ids = await scanOwnedInBrowser(ownerLc, n || undefined);
+      const ids = await scanOwnedInBrowser(ownerLc, n || undefined, walletProvider);
       if (ids.length) return remember(ids);
       if (n === 0) return remember([]);
     } catch (err) {
       errors.push(`RPC scan: ${err?.shortMessage || err?.message || err}`);
     }
 
-    // 3) API fallback (may be slow first time; 20s server cap)
+    // 3) Short API fallback only (server may hang; keep it brief)
     try {
       setScanAtmosphereProgress('Trying Moze API…');
       const ids = await fetchOwnedViaApiBase(
         API_BASE || 'https://api.mozestreet.art',
         ownerLc,
-        22000
+        12000
       );
       if (ids.length || n === 0) return remember(ids);
     } catch (err) {
       errors.push(`API: ${err?.message || err}`);
     }
 
+    // 4) If we know balanceOf > 0 but can't list IDs, still fail clearly
     console.error('fetchOwnedTokenIds failed', errors);
-    const hint = errors.some((e) => /timeout|abort/i.test(e))
-      ? 'Lookup timed out — stay on Robinhood and click Connect again.'
-      : 'Could not list your Moze NFTs. Confirm MetaMask is on Robinhood (4663), then reconnect.';
-    throw new Error(hint);
+    throw new Error(
+      n > 0
+        ? `Found ${n} Moze on-chain but could not list token IDs. Reconnect or try again in a moment.`
+        : 'Could not read Moze balance. Confirm MetaMask network is Robinhood (4663), then reconnect.'
+    );
   } finally {
     stopScanAtmosphere();
   }

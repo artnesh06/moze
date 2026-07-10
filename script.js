@@ -2038,8 +2038,8 @@ async function withRetry(fn, tries = 3, delayMs = 400) {
   throw lastErr;
 }
 
-/** Fetch token list from one API base (with timeout). */
-async function fetchOwnedViaApiBase(base, owner, timeoutMs = 8000) {
+/** Fetch token list from API (generous timeout — server may scan once). */
+async function fetchOwnedViaApiBase(base, owner, timeoutMs = 45000) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
@@ -2051,51 +2051,76 @@ async function fetchOwnedViaApiBase(base, owner, timeoutMs = 8000) {
     const data = await res.json().catch(() => null);
     if (!res.ok) throw new Error(data?.error || res.statusText || 'API error');
     return (data?.tokens || []).map(Number).filter((n) => Number.isFinite(n));
+  } catch (err) {
+    if (err?.name === 'AbortError') {
+      throw new Error('API timeout — try again');
+    }
+    throw err;
   } finally {
     clearTimeout(t);
   }
 }
 
-/** Prefer current API_BASE; also race production so local empty/slow scan doesn't stall. */
 async function fetchOwnedViaApi(owner) {
   if (apiOnline === null) await pingApi();
-  const bases = [];
-  if (API_BASE) bases.push(API_BASE);
-  const prod = 'https://api.mozestreet.art';
-  if (!bases.includes(prod)) bases.push(prod);
+  const base = API_BASE || 'https://api.mozestreet.art';
+  return fetchOwnedViaApiBase(base, owner, 45000);
+}
 
-  const errors = [];
-  // Race all bases — first successful list wins
-  const result = await new Promise((resolve) => {
-    let left = bases.length;
-    let done = false;
-    for (const base of bases) {
-      fetchOwnedViaApiBase(base, owner, 9000)
-        .then((tokens) => {
-          if (!done) {
-            done = true;
-            resolve({ ok: true, tokens, base });
-          }
-        })
-        .catch((err) => {
-          errors.push(`${base}: ${err?.message || err}`);
-          left -= 1;
-          if (left <= 0 && !done) resolve({ ok: false, errors });
-        });
+/** Browser-side ownerOf scan (parallel with API). */
+async function scanOwnedInBrowser(ownerLc, nHint) {
+  const read = getRobinhoodReadProvider();
+  const contract = new ethers.Contract(MOZE_CA, ERC721_ABI, read);
+  let n = nHint;
+  if (n == null) n = Number(await withRetry(() => contract.balanceOf(ownerLc), 2, 200));
+  if (!n) return [];
+
+  try {
+    const ids = await Promise.all(
+      Array.from({ length: n }, (_, i) =>
+        contract.tokenOfOwnerByIndex(ownerLc, i).then((x) => Number(x))
+      )
+    );
+    if (ids.length === n && ids.every(Number.isFinite)) return ids;
+  } catch { /* not enumerable */ }
+
+  let supply = 1000;
+  try {
+    const ts = Number(await contract.totalSupply());
+    if (ts > 0) supply = Math.min(1000, Math.max(ts + 5, ts));
+  } catch { /* 1000 */ }
+
+  const found = [];
+  const batch = 120;
+  const maxId = Math.max(supply, 1000);
+  for (let start = 1; start <= maxId && found.length < n; start += batch) {
+    const chunk = [];
+    for (let id = start; id < start + batch && id <= maxId; id += 1) {
+      chunk.push(
+        contract
+          .ownerOf(id)
+          .then((o) => (String(o).toLowerCase() === ownerLc ? id : null))
+          .catch(() => null)
+      );
     }
-  });
-  if (result?.ok) return result.tokens;
-  throw new Error(errors[0] || 'API offline');
+    // eslint-disable-next-line no-await-in-loop
+    const results = await Promise.all(chunk);
+    for (const id of results) {
+      if (id != null) found.push(id);
+    }
+    if (start === 1 || start % 240 === 1) {
+      setScanAtmosphereProgress(`Matching ownership · ${found.length}/${n}`);
+    }
+  }
+  return found;
 }
 
 async function fetchOwnedTokenIds(walletProvider, owner) {
   const ownerLc = String(owner).toLowerCase();
   const errors = [];
-  // Non-blocking art — does not delay token lookup
   startScanAtmosphere('Loading your Moze…');
   setStakeStatus('Hang tight — loading your Moze…');
 
-  // Session cache (reconnect same wallet = instant)
   const cached = ownedTokensClientCache.get(ownerLc);
   if (cached && Date.now() - cached.at < 120_000) {
     setScanAtmosphereProgress('Loaded from cache');
@@ -2112,82 +2137,65 @@ async function fetchOwnedTokenIds(walletProvider, owner) {
   };
 
   try {
-    // 1) Quick balance check (1 RPC) — empty wallet exits fast
+    // 1) balanceOf — empty wallet exits immediately
+    let n = 0;
     try {
       const read = getRobinhoodReadProvider();
       const contract = new ethers.Contract(MOZE_CA, ERC721_ABI, read);
-      const n = Number(await withRetry(() => contract.balanceOf(ownerLc), 2, 200));
+      n = Number(await withRetry(() => contract.balanceOf(ownerLc), 2, 200));
       if (!n) {
         setScanAtmosphereProgress('No Moze in this wallet');
         return remember([]);
       }
       setStakeStatus(`Hang tight — loading your Moze… (${n} on-chain)`);
-
-      // 2) Enumerable (fast if supported)
-      try {
-        const ids = await Promise.all(
-          Array.from({ length: n }, (_, i) =>
-            contract.tokenOfOwnerByIndex(ownerLc, i).then((x) => Number(x))
-          )
-        );
-        if (ids.length === n && ids.every(Number.isFinite)) {
-          return remember(ids);
-        }
-      } catch { /* not enumerable */ }
     } catch (err) {
-      errors.push(`balance: ${err?.shortMessage || err?.message || err}`);
+      errors.push(`RPC balance: ${err?.shortMessage || err?.message || err}`);
     }
 
-    // 3) API race (prod + local) — usually faster than browser ownerOf scan
-    try {
-      setScanAtmosphereProgress('Fetching ownership…');
-      const ids = await fetchOwnedViaApi(ownerLc);
-      return remember(ids);
-    } catch (err) {
-      errors.push(`API: ${err?.message || err}`);
-    }
+    // 2) Race API + browser scan — first complete wins (chain already OK if balance worked)
+    setScanAtmosphereProgress('Finding your token IDs…');
+    const tasks = [
+      fetchOwnedViaApi(ownerLc)
+        .then((tokens) => ({ src: 'api', tokens }))
+        .catch((err) => {
+          errors.push(`API: ${err?.message || err}`);
+          return null;
+        }),
+      scanOwnedInBrowser(ownerLc, n || undefined)
+        .then((tokens) => ({ src: 'rpc', tokens }))
+        .catch((err) => {
+          errors.push(`RPC scan: ${err?.shortMessage || err?.message || err}`);
+          return null;
+        }),
+    ];
 
-    // 4) Last resort: browser batched ownerOf
-    try {
-      const read = getRobinhoodReadProvider();
-      const contract = new ethers.Contract(MOZE_CA, ERC721_ABI, read);
-      const n = Number(await contract.balanceOf(ownerLc));
-      if (!n) return remember([]);
-      setScanAtmosphereProgress(`Matching ownership · ${n} NFT${n === 1 ? '' : 's'}`);
-      let supply = 1000;
-      try {
-        const ts = Number(await contract.totalSupply());
-        if (ts > 0) supply = Math.min(1000, Math.max(ts + 5, ts));
-      } catch { /* 1000 */ }
-
-      const found = [];
-      const batch = 100;
-      const maxId = Math.max(supply, 1000);
-      for (let start = 1; start <= maxId && found.length < n; start += batch) {
-        const chunk = [];
-        for (let id = start; id < start + batch && id <= maxId; id += 1) {
-          chunk.push(
-            contract
-              .ownerOf(id)
-              .then((o) => (String(o).toLowerCase() === ownerLc ? id : null))
-              .catch(() => null)
-          );
-        }
-        const results = await Promise.all(chunk);
-        for (const id of results) {
-          if (id != null) found.push(id);
-        }
+    const winner = await new Promise((resolve) => {
+      let pending = tasks.length;
+      let settled = false;
+      for (const p of tasks) {
+        p.then((res) => {
+          if (settled) return;
+          if (res && Array.isArray(res.tokens)) {
+            // Accept empty only if we know balance is 0; else wait for other
+            if (res.tokens.length > 0 || n === 0) {
+              settled = true;
+              resolve(res);
+              return;
+            }
+          }
+          pending -= 1;
+          if (pending <= 0 && !settled) resolve(null);
+        });
       }
-      if (found.length) return remember(found);
-    } catch (err) {
-      errors.push(`scan: ${err?.shortMessage || err?.message || err}`);
-    }
+    });
+
+    if (winner?.tokens) return remember(winner.tokens);
 
     console.error('fetchOwnedTokenIds failed', errors);
-    throw new Error(
-      'Could not read NFT balance. Switch wallet to Robinhood Chain (chainId 4663), then reconnect. ' +
-        (errors[0] ? `(${errors[0]})` : '')
-    );
+    const hint = errors.some((e) => /timeout|abort/i.test(e))
+      ? 'Lookup timed out — click Connect again (retry is faster after cache warms).'
+      : 'Could not list your Moze NFTs. Stay on Robinhood Chain and reconnect.';
+    throw new Error(hint + (errors[0] ? ` (${errors[0]})` : ''));
   } finally {
     stopScanAtmosphere();
   }

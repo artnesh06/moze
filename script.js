@@ -146,10 +146,11 @@ async function refreshMintStats(force = false) {
     console.warn('[stats] api failed', err?.message || err);
   }
 
-  // Snapshot fills gaps: full fallback if API offline, or market fields if OpenSea key missing
+  // Snapshot fills gaps only when still blank (API offline / field missing).
+  // Never overwrite live zeros (e.g. sales=0, volume=0 ETH).
   const isBlank = (id) => {
     const t = document.getElementById(id)?.textContent?.trim();
-    return !t || t === '—';
+    return !t || t === '—' || t === '…' || t === '-';
   };
   try {
     const res = await fetch('data/collection-stats.json', { cache: 'no-store' });
@@ -159,13 +160,17 @@ async function refreshMintStats(force = false) {
         minted = Number(s.minted) || 0;
         set('mint-minted', fmtInt(s.minted));
       }
-      if (!holders && s.holders != null) {
+      // Don't use snapshot holders if live already set a number (even incomplete was fixed server-side)
+      if (isBlank('mint-holders') && s.holders != null) {
         holders = Number(s.holders) || 0;
         set('mint-holders', fmtInt(s.holders));
       }
       if (isBlank('mint-offer') && s.offer) set('mint-offer', s.offer);
       if (isBlank('mint-volume') && s.volume_all) set('mint-volume', s.volume_all);
       if (isBlank('mint-sales') && s.sales != null) set('mint-sales', fmtInt(s.sales));
+      if (isBlank('mint-listed') && s.listed != null && s.listed !== '') {
+        set('mint-listed', fmtInt(s.listed));
+      }
     }
   } catch { /* ignore */ }
 

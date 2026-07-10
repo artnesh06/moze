@@ -2152,50 +2152,34 @@ async function fetchOwnedTokenIds(walletProvider, owner) {
       errors.push(`RPC balance: ${err?.shortMessage || err?.message || err}`);
     }
 
-    // 2) Race API + browser scan — first complete wins (chain already OK if balance worked)
-    setScanAtmosphereProgress('Finding your token IDs…');
-    const tasks = [
-      fetchOwnedViaApi(ownerLc)
-        .then((tokens) => ({ src: 'api', tokens }))
-        .catch((err) => {
-          errors.push(`API: ${err?.message || err}`);
-          return null;
-        }),
-      scanOwnedInBrowser(ownerLc, n || undefined)
-        .then((tokens) => ({ src: 'rpc', tokens }))
-        .catch((err) => {
-          errors.push(`RPC scan: ${err?.shortMessage || err?.message || err}`);
-          return null;
-        }),
-    ];
+    // 2) Browser RPC scan first (works when API is slow/hanging)
+    setScanAtmosphereProgress('Scanning on-chain…');
+    try {
+      const ids = await scanOwnedInBrowser(ownerLc, n || undefined);
+      if (ids.length) return remember(ids);
+      if (n === 0) return remember([]);
+    } catch (err) {
+      errors.push(`RPC scan: ${err?.shortMessage || err?.message || err}`);
+    }
 
-    const winner = await new Promise((resolve) => {
-      let pending = tasks.length;
-      let settled = false;
-      for (const p of tasks) {
-        p.then((res) => {
-          if (settled) return;
-          if (res && Array.isArray(res.tokens)) {
-            // Accept empty only if we know balance is 0; else wait for other
-            if (res.tokens.length > 0 || n === 0) {
-              settled = true;
-              resolve(res);
-              return;
-            }
-          }
-          pending -= 1;
-          if (pending <= 0 && !settled) resolve(null);
-        });
-      }
-    });
-
-    if (winner?.tokens) return remember(winner.tokens);
+    // 3) API fallback (may be slow first time; 20s server cap)
+    try {
+      setScanAtmosphereProgress('Trying Moze API…');
+      const ids = await fetchOwnedViaApiBase(
+        API_BASE || 'https://api.mozestreet.art',
+        ownerLc,
+        22000
+      );
+      if (ids.length || n === 0) return remember(ids);
+    } catch (err) {
+      errors.push(`API: ${err?.message || err}`);
+    }
 
     console.error('fetchOwnedTokenIds failed', errors);
     const hint = errors.some((e) => /timeout|abort/i.test(e))
-      ? 'Lookup timed out — click Connect again (retry is faster after cache warms).'
-      : 'Could not list your Moze NFTs. Stay on Robinhood Chain and reconnect.';
-    throw new Error(hint + (errors[0] ? ` (${errors[0]})` : ''));
+      ? 'Lookup timed out — stay on Robinhood and click Connect again.'
+      : 'Could not list your Moze NFTs. Confirm MetaMask is on Robinhood (4663), then reconnect.';
+    throw new Error(hint);
   } finally {
     stopScanAtmosphere();
   }

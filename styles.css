@@ -117,17 +117,17 @@ body {
 .stats-cta {
   flex-shrink: 0;
   padding: 0.45em 0.9em;
-  background: var(--neon);
-  color: var(--brown-dark) !important;
-  border: 1px solid var(--neon-deep);
+  background: #2081e2;
+  color: #fff !important;
+  border: 1px solid #1868b7;
   font-weight: 800;
   font-size: 0.8em;
   text-decoration: none !important;
 }
 
 .stats-cta:hover {
-  background: var(--neon-glow);
-  color: var(--brown-dark) !important;
+  background: #1868b7;
+  color: #fff !important;
 }
 
 .stats-btn-secondary {

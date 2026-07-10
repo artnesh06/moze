@@ -2989,10 +2989,17 @@ function shakeRaffleEnterBtn() {
 }
 
 function clampRaffleQty(n) {
-  const max = raffleState?.maxTicketsPerWallet || 20;
+  // No default wallet cap — only clamp if API sends maxTicketsPerWallet.
+  const max = raffleState?.maxTicketsPerWallet;
   const your = Number(raffleState?.yourTickets) || 0;
-  const room = Math.max(1, max - your);
-  return Math.max(1, Math.min(room, Math.floor(Number(n) || 1)));
+  let q = Math.max(1, Math.floor(Number(n) || 1));
+  if (max != null && Number(max) > 0) {
+    const room = Math.max(1, Number(max) - your);
+    q = Math.min(room, q);
+  }
+  // UI safety for input field (not a wallet purchase cap)
+  if (q > 10000) q = 10000;
+  return q;
 }
 
 /** Normalize epoch to ms (handles seconds accidentally stored). */

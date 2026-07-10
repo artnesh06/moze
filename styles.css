@@ -729,11 +729,11 @@ body.wallet-modal-open {
   width: 100%;
 }
 
-/* Time row: compact + centered */
+/* Time row: compact + centered — fixed 2-digit width so timer never jumps */
 .raffle-cd-dash.stake-dashboard {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 3.45em));
-  gap: 5px;
+  grid-template-columns: repeat(4, minmax(3.7em, 3.9em));
+  gap: 6px;
   justify-content: center;
   justify-items: stretch;
   margin: 0 auto;
@@ -742,8 +742,9 @@ body.wallet-modal-open {
 }
 
 .raffle-cd-dash .stake-stat {
-  padding: 0.32em 0.18em 0.28em;
+  padding: 0.35em 0.22em 0.3em;
   min-width: 0;
+  text-align: center;
 }
 
 .raffle-cd-dash .stake-stat-label {
@@ -753,19 +754,26 @@ body.wallet-modal-open {
 
 .raffle-cd-dash .stake-stat strong,
 .raffle-cd-dash .stake-stat .slot-num {
-  font-size: 0.92em;
-  min-height: 1.1em;
+  font-size: 0.95em;
+  /* must match setSlotNumber step (1.25em) or digits clip/offset */
+  min-height: 1.25em;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .raffle-cd-dash .slot-odometer {
-  height: 1.1em;
-  font-size: 0.92em;
-  line-height: 1.1em;
+  height: 1.25em;
+  font-size: 1em;
+  line-height: 1.25em;
+  /* keep 2-digit clock stable while reels roll */
+  min-width: 1.3em;
+  justify-content: center;
 }
 
 .raffle-cd-dash .slot-digit {
-  height: 1.1em;
-  width: 0.58em;
+  height: 1.25em;
+  width: 0.62em;
 }
 
 .raffle-cd-dash .slot-digit.slot-sym {
@@ -774,8 +782,13 @@ body.wallet-modal-open {
 
 .raffle-cd-dash .slot-reel span,
 .raffle-cd-dash .slot-digit.slot-sym .slot-static {
-  height: 1.1em;
-  line-height: 1.1em;
+  height: 1.25em;
+  line-height: 1.25em;
+}
+
+/* Soft tick for seconds (no blur / multi-turn) */
+.raffle-cd-dash .slot-odometer .slot-reel {
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .raffle-cd-dash .stake-stat-unit {
@@ -811,7 +824,7 @@ body.wallet-modal-open {
 
 @media (max-width: 420px) {
   .raffle-cd-dash.stake-dashboard {
-    grid-template-columns: repeat(4, minmax(0, 3.1em));
+    grid-template-columns: repeat(4, minmax(3.25em, 3.45em));
     gap: 4px;
   }
   .raffle-entries-dash.stake-dashboard {

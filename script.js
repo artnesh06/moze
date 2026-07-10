@@ -2998,14 +2998,23 @@ function toMs(ts) {
   return Math.floor(n);
 }
 
-function setRaffleCdNum(id, value, { spin = true } = {}) {
+/** Last rendered countdown parts — avoid full slot rebuild/spin spam every second */
+let raffleCdPrev = { d: null, h: null, m: null, s: null };
+
+/**
+ * Raffle countdown digits: always 2-digit padded (stable width).
+ * Full slot spin only when value actually changes (days/hours/mins).
+ * Seconds tick gently without multi-turn spin (that made the timer look broken).
+ */
+function setRaffleCdNum(id, value, { spin = false, pad = 2 } = {}) {
   const el = document.getElementById(id);
   if (!el) return;
-  // Slot animation (same as stake dashboard)
-  setSlotInt(el, Math.max(0, Math.floor(Number(value) || 0)), { spin });
+  const n = Math.max(0, Math.floor(Number(value) || 0));
+  const text = String(n).padStart(pad, '0');
+  setSlotNumber(el, text, { spin: !!spin });
 }
 
-/** Live day / hour / min / sec countdown to raffle.endsAt — starts now, ends in 14d */
+/** Live day / hour / min / sec countdown to raffle.endsAt */
 function tickRaffleCountdown() {
   let endsAt = toMs(raffleState?.endsAt);
   const startsAt = toMs(raffleState?.startsAt);
@@ -3020,21 +3029,27 @@ function tickRaffleCountdown() {
   }
 
   const now = Date.now();
-  // Not started yet (shouldn't happen — we open immediately)
+  // Not started yet — show zeros quietly
   if (startsAt && now < startsAt) {
-    setRaffleCdNum('raffle-cd-days', 0, { spin: false });
-    setRaffleCdNum('raffle-cd-hours', 0, { spin: false });
-    setRaffleCdNum('raffle-cd-mins', 0, { spin: false });
-    setRaffleCdNum('raffle-cd-secs', 0, { spin: true });
+    if (raffleCdPrev.d !== 0 || raffleCdPrev.h !== 0 || raffleCdPrev.m !== 0 || raffleCdPrev.s !== 0) {
+      setRaffleCdNum('raffle-cd-days', 0, { spin: false });
+      setRaffleCdNum('raffle-cd-hours', 0, { spin: false });
+      setRaffleCdNum('raffle-cd-mins', 0, { spin: false });
+      setRaffleCdNum('raffle-cd-secs', 0, { spin: false });
+      raffleCdPrev = { d: 0, h: 0, m: 0, s: 0 };
+    }
     return;
   }
 
   const left = endsAt - now;
   if (left <= 0) {
-    setRaffleCdNum('raffle-cd-days', 0, { spin: false });
-    setRaffleCdNum('raffle-cd-hours', 0, { spin: false });
-    setRaffleCdNum('raffle-cd-mins', 0, { spin: false });
-    setRaffleCdNum('raffle-cd-secs', 0, { spin: false });
+    if (raffleCdPrev.d !== 0 || raffleCdPrev.h !== 0 || raffleCdPrev.m !== 0 || raffleCdPrev.s !== 0) {
+      setRaffleCdNum('raffle-cd-days', 0, { spin: false });
+      setRaffleCdNum('raffle-cd-hours', 0, { spin: false });
+      setRaffleCdNum('raffle-cd-mins', 0, { spin: false });
+      setRaffleCdNum('raffle-cd-secs', 0, { spin: false });
+      raffleCdPrev = { d: 0, h: 0, m: 0, s: 0 };
+    }
     root.classList.add('is-ended');
     if (endMsg) endMsg.hidden = false;
     if (raffleState) raffleState.open = false;
@@ -3055,15 +3070,21 @@ function tickRaffleCountdown() {
   const hours = Math.floor((sec % 86400) / 3600);
   const mins = Math.floor((sec % 3600) / 60);
   const secs = sec % 60;
-  // Spin all on big changes; secs always soft-spin like pending
-  setRaffleCdNum('raffle-cd-days', days, { spin: true });
-  setRaffleCdNum('raffle-cd-hours', hours, { spin: true });
-  setRaffleCdNum('raffle-cd-mins', mins, { spin: true });
-  setRaffleCdNum('raffle-cd-secs', secs, { spin: true });
+
+  // First paint: no spin. Later: spin only fields that changed (not secs).
+  const first = raffleCdPrev.d === null;
+  setRaffleCdNum('raffle-cd-days', days, { spin: !first && raffleCdPrev.d !== days });
+  setRaffleCdNum('raffle-cd-hours', hours, { spin: !first && raffleCdPrev.h !== hours });
+  setRaffleCdNum('raffle-cd-mins', mins, { spin: !first && raffleCdPrev.m !== mins });
+  // Seconds: soft digit roll only (no full slot revolution every tick)
+  setRaffleCdNum('raffle-cd-secs', secs, { spin: false });
+  raffleCdPrev = { d: days, h: hours, m: mins, s: secs };
 }
 
 function startRaffleCountdown() {
   if (raffleCountdownTimer) clearInterval(raffleCountdownTimer);
+  // Reset so first paint after API load is clean (no fake spin from stale prev)
+  raffleCdPrev = { d: null, h: null, m: null, s: null };
   tickRaffleCountdown();
   raffleCountdownTimer = setInterval(tickRaffleCountdown, 1000);
 }

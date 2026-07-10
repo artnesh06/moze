@@ -45,9 +45,7 @@ async function loadData() {
 
   renderGallery();
   startGalleryRotate();
-  // Trait Lab temporarily hidden (broken layer paths) — skip init
-  const traitsSection = document.getElementById('traits');
-  if (traitsSection && !traitsSection.hidden) initTraits();
+  initTraits();
   initLightbox();
   initGallerySearch();
   refreshMintStats();
@@ -352,7 +350,7 @@ let leaderboardLoading = false;
 const API_BASE = String(
   (typeof window !== 'undefined' && window.MOZE_API) ||
   (typeof localStorage !== 'undefined' && localStorage.getItem('moze-api')) ||
-  'https://api-moze.artnesh.cloud'
+  'https://api.mozestreet.art'
 ).replace(/\/$/, '');
 
 let apiOnline = null; // null unknown, true/false
@@ -443,7 +441,14 @@ async function apiSignedAction(action, tokenIds = []) {
       timestamp,
       signature,
     };
-    return await apiFetch(path, { method: 'POST', body: JSON.stringify(body) });
+    const res = await apiFetch(path, { method: 'POST', body: JSON.stringify(body) });
+    // Keep localStorage in sync with server after successful signed action
+    if (res?.ok && res.state) {
+      applyServerStakeToLocal(address, res.state);
+    } else if (res?.ok) {
+      await hydrateStakeFromApi(address);
+    }
+    return res;
   } catch (err) {
     console.warn('[moze-api]', action, err?.message || err);
     return { error: err?.message || String(err) };
@@ -1065,6 +1070,60 @@ function saveStakeState(addr, state) {
   localStorage.setItem(stakeStoreKey(addr), JSON.stringify(state));
 }
 
+/**
+ * Map API GET /v1/stake/:address into local { positions, claimed, banked }.
+ * Server is source of truth when it has activity; local-only positions are kept.
+ */
+function applyServerStakeToLocal(addr, server) {
+  const local = loadStakeState(addr);
+  if (!server || server.error) return local;
+
+  const serverPositions = Array.isArray(server.positions) ? server.positions : [];
+  const serverClaimed = Number(server.claimed) || 0;
+  const serverPending = Number(server.pending) || 0;
+  const serverHas =
+    serverPositions.length > 0 || serverClaimed > 0 || serverPending > 0;
+
+  if (!serverHas) return local;
+
+  const positions = {};
+  for (const p of serverPositions) {
+    const id = String(p.tokenId ?? p.token_id ?? '');
+    if (!id || id === 'undefined') continue;
+    // lastSettleAt: client accrues only after that (server already banked up to then)
+    positions[id] = Number(p.lastSettleAt ?? p.last_settle_at ?? p.stakedAt ?? p.staked_at ?? Date.now());
+  }
+  // Keep local-only positions (staked without successful API sync)
+  for (const [id, since] of Object.entries(local.positions || {})) {
+    if (positions[id] == null) positions[id] = since;
+  }
+
+  const state = {
+    positions,
+    claimed: Math.max(Number(local.claimed) || 0, serverClaimed),
+    // Prefer server banked/pending when server has positions or claims
+    banked: serverPositions.length || serverClaimed > 0
+      ? serverPending
+      : Math.max(Number(local.banked) || 0, serverPending),
+  };
+  saveStakeState(addr, state);
+  return state;
+}
+
+/** Pull shared stake state from moze-api (multi-browser sync). */
+async function hydrateStakeFromApi(addr) {
+  if (!addr) return loadStakeState(addr);
+  try {
+    if (apiOnline === null) await pingApi();
+    if (!apiOnline) return loadStakeState(addr);
+    const data = await apiFetch(`/v1/stake/${encodeURIComponent(addr)}`);
+    return applyServerStakeToLocal(addr, data);
+  } catch (err) {
+    console.warn('[moze-api] hydrate stake failed', err?.message || err);
+    return loadStakeState(addr);
+  }
+}
+
 function stakedIdSet(state) {
   return new Set(Object.keys(state.positions).map(Number));
 }
@@ -1600,49 +1659,36 @@ async function shareActiveStakeOnX() {
   }
   const item = collection.find(c => Number(c.id) === id);
   const nick = item?.nickname || `Moze #${id}`;
+  const site = 'https://www.mozestreet.art';
   const opensea = `https://opensea.io/item/robinhood/${MOZE_CA}/${id}`;
   const text =
     `Staking ${nick} (#${id}) on Moze 🎨\n` +
-    `Soft rewards $MOZE · Robinhood Chain\n` +
+    `Soft stake $MOZE · free mint on Robinhood\n` +
+    `${site}\n` +
     `${opensea}\n` +
     `@mozenft_`;
 
-  try {
-    // Try Web Share with file (mobile / some browsers)
-    if (navigator.share && navigator.canShare) {
-      const blob = await fetchImageBlob(activeStakeImageUrl(id));
-      const file = new File([blob], `moze-${id}.png`, { type: 'image/png' });
-      if (navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: nick,
-          text,
-        });
-        setStakeImgStatus('Shared.');
-        return;
-      }
-    }
-  } catch (err) {
-    // user cancel or unsupported — fall through to X intent
-    if (err?.name === 'AbortError') {
-      setStakeImgStatus('');
-      return;
-    }
-  }
-
-  // X/Twitter web intent (text + url; image must be attached manually or via OS share)
+  // Always open X compose (intent) — do NOT use OS Web Share sheet (AirDrop/Mail/etc.)
   const intent = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
   window.open(intent, '_blank', 'noopener,noreferrer');
-  setStakeImgStatus('X opened. Image copied too (if supported) — paste into the post.');
-  // best-effort also copy image so user can paste into compose
+
+  // Best-effort: copy image so user can paste into the X post (X intent can't attach files)
+  let copied = false;
   try {
     const blob = await fetchImageBlob(activeStakeImageUrl(id));
     if (navigator.clipboard && window.ClipboardItem) {
       await navigator.clipboard.write([
         new ClipboardItem({ [blob.type || 'image/png']: blob }),
       ]);
+      copied = true;
     }
   } catch { /* ignore */ }
+
+  setStakeImgStatus(
+    copied
+      ? 'X opened — image copied, paste into the post if you want.'
+      : 'X opened — attach the image manually if needed.'
+  );
 }
 
 function renderStakeGrid() {
@@ -1774,7 +1820,9 @@ async function connectStakeWallet(forcedAddress) {
       await fetchImageBlob(activeStakeImageUrl(stakeOwnedIds[0]));
     } catch { /* ignore */ }
 
-    const state = loadStakeState(stakeAccount);
+    // Multi-browser: load claimed/pending/positions from API, then merge local
+    setStakeStatus(`Connected ${shortAddr(stakeAccount)}. Syncing stake…`);
+    let state = await hydrateStakeFromApi(stakeAccount);
     settleAccrued(state);
     for (const id of Object.keys(state.positions)) {
       if (!stakeOwnedIds.includes(Number(id))) delete state.positions[id];
@@ -1783,7 +1831,8 @@ async function connectStakeWallet(forcedAddress) {
     const nStaked = Object.keys(state.positions).length;
     setStakeStatus(
       stakeOwnedIds.length + ' Moze found · ' + nStaked + ' staked · ' +
-      formatMoze(pendingMoze(state)) + ' $MOZE pending. Click a card to select.'
+      formatMoze(pendingMoze(state)) + ' $MOZE pending · ' +
+      formatMoze(state.claimed) + ' claimed. Click a card to select.'
     );
     showStakeChrome(true);
     renderStakeGrid();

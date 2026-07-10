@@ -12,7 +12,7 @@
   <meta name="twitter:site" content="@mozenft_">
   <link rel="icon" href="assets/ico.png" type="image/png">
   <meta name="theme-color" content="#5c1a2e">
-  <link rel="stylesheet" href="styles.css?v=42">
+  <link rel="stylesheet" href="styles.css?v=43">
 </head>
 <body>
 
@@ -43,62 +43,6 @@
         |
         <a href="/stake" id="nav-stake" data-go="stake">Stake now!</a>
       </p>
-    </div>
-
-    <div class="m_box" id="gallery">
-      <div class="m_box_bar"><h2>Gallery</h2></div>
-      <p class="centered-text">Search a token, or click any Moze for art and story.</p>
-      <form id="gallery-search-form" class="gallery-search" action="#" autocomplete="off">
-        <input type="search" id="gallery-search-input" placeholder="Search token # e.g. 261" inputmode="numeric">
-        <button type="submit" class="connect-button gallery-search-btn">Search</button>
-        <button type="button" id="gallery-clear" class="connect-button gallery-search-btn" hidden>Clear</button>
-      </form>
-      <p id="gallery-search-status" class="centered-text fine"></p>
-      <div id="gallery-grid" class="gallery_container"></div>
-    </div>
-
-    <!-- Trait Lab hidden until layer image paths are fixed (Traits vs traits case) -->
-    <div class="m_box" id="traits" hidden aria-hidden="true">
-      <div class="m_box_bar"><h2>Trait Lab — Dress Up</h2></div>
-      <p class="centered-text">
-        <span id="traits-desc">151 traits across 7 layers.</span> Mix traits and generate a brand new Moze.
-      </p>
-      <div class="trait-lab" id="trait-lab-body">
-        <div class="composer-wrap">
-          <div id="composer-canvas" class="composer-canvas">
-            <div class="composer-empty">Generating…</div>
-          </div>
-          <p id="composer-caption" class="composer-caption centered-text"></p>
-          <div class="composer-actions">
-            <button type="button" id="random-traits" class="connect-button">Randomize</button>
-            <button type="button" id="download-moze" class="connect-button" disabled>Download PNG</button>
-          </div>
-        </div>
-        <div class="trait-picker">
-          <div id="trait-tabs" class="trait-tabs"></div>
-          <div id="trait-items" class="trait-items"></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="m_box">
-      <div class="m_box_bar"><h2>Trait Parallels</h2></div>
-      <p>
-        <strong>Moze Trait Parallels:</strong>
-        Traits born from street walls, classic cartoons, and pop culture icons.
-        Familiar faces, reworked for the block.
-      </p>
-      <hr>
-
-      <div class="parallel-block">
-        <p class="parallel-title"><strong>Donald Duck → Duck Hat</strong></p>
-        <img src="assets/compare-donald.jpg" alt="Donald Duck reference, Duck Hat trait, and Moze #54" class="compare-wide">
-      </div>
-
-      <div class="parallel-block">
-        <p class="parallel-title"><strong>Naruto → Ninja Hair</strong></p>
-        <img src="assets/compare-naruto.jpg" alt="Naruto reference, Ninja Hair trait, and Moze #40" class="compare-wide">
-      </div>
     </div>
 
     <div class="m_box" id="stake">
@@ -215,6 +159,61 @@
       </div>
     </div>
 
+    <div class="m_box" id="gallery">
+      <div class="m_box_bar"><h2>Gallery</h2></div>
+      <p class="centered-text">Search a token, or click any Moze for art and story.</p>
+      <form id="gallery-search-form" class="gallery-search" action="#" autocomplete="off">
+        <input type="search" id="gallery-search-input" placeholder="Search token # e.g. 261" inputmode="numeric">
+        <button type="submit" class="connect-button gallery-search-btn">Search</button>
+        <button type="button" id="gallery-clear" class="connect-button gallery-search-btn" hidden>Clear</button>
+      </form>
+      <p id="gallery-search-status" class="centered-text fine"></p>
+      <div id="gallery-grid" class="gallery_container"></div>
+    </div>
+
+    <div class="m_box" id="traits">
+      <div class="m_box_bar"><h2>Trait Lab — Dress Up</h2></div>
+      <p class="centered-text">
+        <span id="traits-desc">151 traits across 7 layers.</span> Mix traits and generate a brand new Moze.
+      </p>
+      <div class="trait-lab" id="trait-lab-body">
+        <div class="composer-wrap">
+          <div id="composer-canvas" class="composer-canvas">
+            <div class="composer-empty">Generating…</div>
+          </div>
+          <p id="composer-caption" class="composer-caption centered-text"></p>
+          <div class="composer-actions">
+            <button type="button" id="random-traits" class="connect-button">Randomize</button>
+            <button type="button" id="download-moze" class="connect-button" disabled>Download PNG</button>
+          </div>
+        </div>
+        <div class="trait-picker">
+          <div id="trait-tabs" class="trait-tabs"></div>
+          <div id="trait-items" class="trait-items"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="m_box">
+      <div class="m_box_bar"><h2>Trait Parallels</h2></div>
+      <p>
+        <strong>Moze Trait Parallels:</strong>
+        Traits born from street walls, classic cartoons, and pop culture icons.
+        Familiar faces, reworked for the block.
+      </p>
+      <hr>
+
+      <div class="parallel-block">
+        <p class="parallel-title"><strong>Donald Duck → Duck Hat</strong></p>
+        <img src="assets/compare-donald.jpg" alt="Donald Duck reference, Duck Hat trait, and Moze #54" class="compare-wide">
+      </div>
+
+      <div class="parallel-block">
+        <p class="parallel-title"><strong>Naruto → Ninja Hair</strong></p>
+        <img src="assets/compare-naruto.jpg" alt="Naruto reference, Ninja Hair trait, and Moze #40" class="compare-wide">
+      </div>
+    </div>
+
     <div class="m_box" id="whitelist">
       <div class="m_box_bar"><h2>Whitelist Check</h2></div>
       <p class="centered-text">Check your wallet to mint for free.</p>
@@ -289,6 +288,6 @@
     // Optional: override API for local backend
     // window.MOZE_API = 'http://localhost:3000';
   </script>
-  <script src="script.js?v=42"></script>
+  <script src="script.js?v=43"></script>
 </body>
 </html>

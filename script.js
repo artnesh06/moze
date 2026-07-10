@@ -48,6 +48,7 @@ async function loadData() {
   initTraits();
   initLightbox();
   initGallerySearch();
+  initMintStatsUi();
   refreshMintStats();
 }
 
@@ -68,65 +69,213 @@ function countLocalStaked() {
   return stakedCount;
 }
 
-/** Fill mint panel from data/collection-stats.json (+ live OpenSea when browser allows). */
-async function refreshMintStats() {
+const MINT_SUPPLY_MAX = 1000;
+
+function parseStatNum(text) {
+  if (text == null || text === '' || text === '—') return 0;
+  const n = Number(String(text).replace(/[^\d.]/g, ''));
+  return Number.isFinite(n) ? n : 0;
+}
+
+function updateMintCharts({ minted }) {
+  const max = MINT_SUPPLY_MAX;
+  const m = Math.min(max, Math.max(0, Number(minted) || 0));
+  const pct = max ? Math.round((m / max) * 1000) / 10 : 0;
+
+  const pctEl = document.getElementById('mint-pct');
+  if (pctEl) pctEl.textContent = `${pct}%`;
+
+  const progress = document.getElementById('bar-minted');
+  if (progress) progress.style.width = `${(m / max) * 100}%`;
+}
+
+/**
+ * Live stats:
+ * 1) moze-api /v1/stats (RPC totalSupply + OpenSea server-side — no browser CORS)
+ * 2) static snapshot fallback
+ * Status text is intentionally not shown in the UI.
+ */
+async function refreshMintStats(force = false) {
   const set = (id, val) => {
     const el = document.getElementById(id);
     if (el && val != null && val !== '') el.textContent = val;
   };
 
-  set('mint-staked', String(countLocalStaked()));
+  let minted = 0;
+  let holders = 0;
+  let staked = countLocalStaked();
+  set('mint-staked', String(staked));
+  set('mint-listed', '—');
 
-  // 1) Same-origin snapshot (always works offline/CORS)
+  let liveOk = false;
+  try {
+    if (apiOnline === null) await pingApi();
+    if (apiOnline) {
+      const q = force ? '?force=1' : '';
+      const s = await apiFetch(`/v1/stats${q}`);
+      if (s && s.ok !== false) {
+        liveOk = true;
+        if (s.minted != null) {
+          minted = Number(s.minted) || 0;
+          set('mint-minted', fmtInt(s.minted));
+        }
+        if (s.holders != null) {
+          holders = Number(s.holders) || 0;
+          set('mint-holders', fmtInt(s.holders));
+        }
+        if (s.offer) set('mint-offer', s.offer);
+        else if (s.floor != null) {
+          const sym = s.floorSymbol || 'ETH';
+          set('mint-offer', Number(s.floor) === 0 ? `0 ${sym}` : `${s.floor} ${sym}`);
+        }
+        if (s.volumeLabel) set('mint-volume', s.volumeLabel);
+        else if (s.volume != null) set('mint-volume', `${s.volume} ETH`);
+        if (s.sales != null) set('mint-sales', fmtInt(s.sales));
+        if (s.listed != null && s.listed !== '') set('mint-listed', fmtInt(s.listed));
+        if (s.staked != null) {
+          staked = Number(s.staked) || staked;
+          set('mint-staked', fmtInt(staked));
+        }
+        if (s.supplyMax != null) {
+          const se = document.getElementById('mint-supply');
+          if (se) se.textContent = fmtInt(s.supplyMax);
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[stats] api failed', err?.message || err);
+  }
+
+  // Snapshot fills gaps: full fallback if API offline, or market fields if OpenSea key missing
+  const isBlank = (id) => {
+    const t = document.getElementById(id)?.textContent?.trim();
+    return !t || t === '—';
+  };
   try {
     const res = await fetch('data/collection-stats.json', { cache: 'no-store' });
     if (res.ok) {
       const s = await res.json();
-      if (s.minted != null) set('mint-minted', fmtInt(s.minted));
-      if (s.holders != null) set('mint-holders', fmtInt(s.holders));
-      if (s.offer) set('mint-offer', s.offer);
-      if (s.volume_all) set('mint-volume', s.volume_all);
-      if (s.sales != null) set('mint-sales', fmtInt(s.sales));
-      if (s.listed != null && s.listed !== '') set('mint-listed', fmtInt(s.listed));
-      else set('mint-listed', '—');
+      if (!minted && s.minted != null) {
+        minted = Number(s.minted) || 0;
+        set('mint-minted', fmtInt(s.minted));
+      }
+      if (!holders && s.holders != null) {
+        holders = Number(s.holders) || 0;
+        set('mint-holders', fmtInt(s.holders));
+      }
+      if (isBlank('mint-offer') && s.offer) set('mint-offer', s.offer);
+      if (isBlank('mint-volume') && s.volume_all) set('mint-volume', s.volume_all);
+      if (isBlank('mint-sales') && s.sales != null) set('mint-sales', fmtInt(s.sales));
     }
   } catch { /* ignore */ }
 
-  // 2) Live OpenSea v2 (works if CORS open; overwrites snapshot)
-  try {
-    const [statsRes, colRes] = await Promise.all([
-      fetch('https://api.opensea.io/api/v2/collections/mozestreetart/stats', {
-        headers: { Accept: 'application/json' },
-      }),
-      fetch('https://api.opensea.io/api/v2/collections/mozestreetart', {
-        headers: { Accept: 'application/json' },
-      }),
-    ]);
-    if (statsRes.ok) {
-      const json = await statsRes.json();
-      const total = json.total || json;
-      if (total.num_owners != null) set('mint-holders', fmtInt(total.num_owners));
-      if (total.floor_price != null) {
-        const fp = Number(total.floor_price);
-        const sym = total.floor_price_symbol || 'ETH';
-        set('mint-offer', fp === 0 ? `0 ${sym}` : `${fp} ${sym}`);
-      }
-      if (total.volume != null) {
-        const v = Number(total.volume);
-        set('mint-volume', v === 0 ? '0 ETH' : `${v} ETH`);
-      }
-      if (total.sales != null) set('mint-sales', fmtInt(total.sales));
-    }
-    if (colRes.ok) {
-      const col = await colRes.json();
-      const minted = col.total_supply ?? col.unique_item_count;
-      if (minted != null) set('mint-minted', fmtInt(minted));
-    }
-  } catch {
-    /* CORS blocked in browser — snapshot already applied */
-  }
+  if (!minted) minted = parseStatNum(document.getElementById('mint-minted')?.textContent);
+  if (!holders) holders = parseStatNum(document.getElementById('mint-holders')?.textContent);
 
-  set('mint-staked', String(countLocalStaked()));
+  updateMintCharts({ minted, holders, staked });
+  return { minted, holders, staked, liveOk };
+}
+
+function downloadTextFile(filename, text, mime = 'text/csv;charset=utf-8') {
+  const blob = new Blob([text], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+function setSnapshotStatus(msg, kind = '') {
+  const el = document.getElementById('holders-snapshot-status');
+  if (!el) return;
+  if (!msg) {
+    el.hidden = true;
+    el.textContent = '';
+    el.classList.remove('is-error', 'is-ok');
+    return;
+  }
+  el.hidden = false;
+  el.textContent = msg;
+  el.classList.toggle('is-error', kind === 'error');
+  el.classList.toggle('is-ok', kind === 'ok');
+}
+
+/** Download holders snapshot CSV from moze-api (or local build fallback). */
+async function snapshotHolders() {
+  const btn = document.getElementById('holders-snapshot');
+  if (btn) btn.disabled = true;
+  setSnapshotStatus('Fetching holders…');
+
+  try {
+    if (apiOnline === null) await pingApi();
+    let wallets = [];
+    let supply = MINT_SUPPLY_MAX;
+    let updatedAt = Date.now();
+    let source = 'api';
+
+    if (apiOnline) {
+      const data = await apiFetch('/v1/holders');
+      wallets = Array.isArray(data.wallets) ? data.wallets : [];
+      supply = data.supply || supply;
+      updatedAt = data.updatedAt || updatedAt;
+    } else if (typeof ethers !== 'undefined') {
+      setSnapshotStatus('API offline — scanning on-chain (slow)…');
+      source = 'on-chain';
+      const map = await buildHoldersMap();
+      wallets = (map.rows || []).map((r) => ({ addr: r.addr, held: r.held }));
+      supply = map.supply || supply;
+      updatedAt = map.scannedAt || updatedAt;
+    } else {
+      throw new Error('No API and no wallet library for on-chain scan.');
+    }
+
+    if (!wallets.length) throw new Error('No holders returned.');
+
+    // sort by held desc
+    wallets = [...wallets].sort(
+      (a, b) => (Number(b.held) || 0) - (Number(a.held) || 0) ||
+        String(a.addr).localeCompare(String(b.addr))
+    );
+
+    const when = new Date(updatedAt);
+    const stamp = when.toISOString().slice(0, 19).replace(/[:T]/g, '-');
+    const lines = [
+      'rank,address,held',
+      ...wallets.map((w, i) => `${i + 1},${String(w.addr || '').toLowerCase()},${Number(w.held) || 0}`),
+    ];
+    // meta as comment header
+    const header =
+      `# Moze holders snapshot\n` +
+      `# source=${source} supply=${supply} wallets=${wallets.length} at=${when.toISOString()}\n` +
+      `# site=https://www.mozestreet.art\n`;
+    downloadTextFile(`moze-holders-${stamp}.csv`, header + lines.join('\n') + '\n');
+    setSnapshotStatus(`Saved ${wallets.length} wallets · ${source}`, 'ok');
+  } catch (err) {
+    console.error(err);
+    setSnapshotStatus(err?.message || 'Snapshot failed.', 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function initMintStatsUi() {
+  document.getElementById('holders-snapshot')?.addEventListener('click', () => {
+    snapshotHolders();
+  });
+  document.getElementById('stats-refresh')?.addEventListener('click', async () => {
+    const btn = document.getElementById('stats-refresh');
+    if (btn) btn.disabled = true;
+    try {
+      await refreshMintStats(true);
+    } catch (err) {
+      console.warn('[stats] refresh failed', err?.message || err);
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  });
 }
 
 function traitCaption(item) {

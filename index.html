@@ -12,7 +12,7 @@
   <meta name="twitter:site" content="@mozenft_">
   <link rel="icon" href="assets/ico.png" type="image/png">
   <meta name="theme-color" content="#5c1a2e">
-  <link rel="stylesheet" href="styles.css?v=43">
+  <link rel="stylesheet" href="styles.css?v=46">
 </head>
 <body>
 
@@ -159,6 +159,68 @@
       </div>
     </div>
 
+    <!-- Collection stats — above gallery -->
+    <section class="stats-hero" id="mint" aria-label="Collection stats">
+    <div class="stats-hero-inner">
+      <header class="stats-head">
+        <div class="stats-head-left">
+          <img src="assets/profile.jpg" alt="" class="stats-avatar" width="44" height="44">
+          <div>
+            <h2 class="stats-title">Moze</h2>
+            <p class="stats-sub">Robinhood · Free mint · 1,000 supply</p>
+          </div>
+        </div>
+        <div class="stats-head-actions">
+          <button type="button" id="stats-refresh" class="stats-btn-secondary" title="Refresh live stats">Refresh</button>
+          <button type="button" id="holders-snapshot" class="stats-btn-secondary">Snapshot holders</button>
+          <a class="stats-cta" href="https://opensea.io/collection/mozestreetart/overview" target="_blank" rel="noopener">OpenSea ↗</a>
+        </div>
+      </header>
+      <p id="holders-snapshot-status" class="stats-snap-status fine" hidden></p>
+
+      <div class="stats-mint">
+        <div class="stats-mint-meta">
+          <span class="stats-mint-label">Minted</span>
+          <span class="stats-mint-nums">
+            <strong id="mint-minted">—</strong><span class="stats-dim"> / <span id="mint-supply">1,000</span></span>
+            <span class="stats-pill" id="mint-pct">—%</span>
+            <span class="stats-free">FREE</span>
+          </span>
+        </div>
+        <div class="stats-progress" role="progressbar" aria-valuemin="0" aria-valuemax="1000" aria-labelledby="mint-minted">
+          <div id="bar-minted" class="stats-progress-fill" style="width:0%"></div>
+        </div>
+      </div>
+
+      <div class="stats-metrics" role="list">
+        <div class="stats-metric" role="listitem">
+          <span class="stats-metric-label">Holders</span>
+          <strong id="mint-holders" class="stats-metric-val">—</strong>
+        </div>
+        <div class="stats-metric" role="listitem">
+          <span class="stats-metric-label">Floor</span>
+          <strong id="mint-offer" class="stats-metric-val">—</strong>
+        </div>
+        <div class="stats-metric" role="listitem">
+          <span class="stats-metric-label">Volume</span>
+          <strong id="mint-volume" class="stats-metric-val">—</strong>
+        </div>
+        <div class="stats-metric" role="listitem">
+          <span class="stats-metric-label">Sales</span>
+          <strong id="mint-sales" class="stats-metric-val">—</strong>
+        </div>
+        <div class="stats-metric" role="listitem">
+          <span class="stats-metric-label">Listed</span>
+          <strong id="mint-listed" class="stats-metric-val">—</strong>
+        </div>
+        <div class="stats-metric" role="listitem">
+          <span class="stats-metric-label">Staked</span>
+          <strong id="mint-staked" class="stats-metric-val">—</strong>
+        </div>
+      </div>
+    </div>
+    </section>
+
     <div class="m_box" id="gallery">
       <div class="m_box_bar"><h2>Gallery</h2></div>
       <p class="centered-text">Search a token, or click any Moze for art and story.</p>
@@ -232,32 +294,6 @@
       <img src="assets/whitelist.jpg" alt="Eligible Moze collection for the whitelist" class="whitelist-img">
     </div>
 
-    <div class="m_box_red" id="mint">
-      <div class="m_box_bar_red"><h2>Mint</h2></div>
-      <div class="mint-with-avatar">
-        <img src="assets/profile.jpg" alt="Moze profile" class="mint-avatar">
-        <div class="mint-info">
-          <p class="amount-minted">
-            Supply: <strong id="mint-minted">—</strong> / <span class="current-supply">1,000</span> · Price: <strong>FREE</strong>
-          </p>
-          <ul class="mint-details">
-            <li>Collection: <strong>Moze Street Art</strong></li>
-            <li>Chain: <strong>Robinhood</strong></li>
-            <li>Platform: <strong>OpenSea</strong></li>
-            <li>Holders: <strong id="mint-holders">—</strong> unique</li>
-            <li>Floor / Offer: <strong id="mint-offer">—</strong></li>
-            <li>Volume: <strong id="mint-volume">—</strong> <span class="fine">(all)</span></li>
-            <li>Sales: <strong id="mint-sales">—</strong></li>
-            <li>Listed: <strong id="mint-listed">—</strong></li>
-            <li>Staked: <strong id="mint-staked">—</strong></li>
-          </ul>
-          <p class="mint-reserve-button">
-            <a href="https://opensea.io/collection/mozestreetart/overview" target="_blank" rel="noopener">Mint / trade on OpenSea →</a>
-          </p>
-        </div>
-      </div>
-    </div>
-
   </div>
 
   <footer class="site-footer">
@@ -288,6 +324,6 @@
     // Optional: override API for local backend
     // window.MOZE_API = 'http://localhost:3000';
   </script>
-  <script src="script.js?v=43"></script>
+  <script src="script.js?v=46"></script>
 </body>
 </html>

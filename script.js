@@ -1038,16 +1038,132 @@ function traitSummary(traits) {
     .join(' · ');
 }
 
-async function renderComposer() {
+/** Pixel loading FX inside Trait Lab canvas (shows work in progress, not lag). */
+let composerPixelAnim = null;
+
+function stopComposerPixelFx() {
+  if (composerPixelAnim?.raf) cancelAnimationFrame(composerPixelAnim.raf);
+  if (composerPixelAnim?.swapTimer) clearInterval(composerPixelAnim.swapTimer);
+  composerPixelAnim = null;
+}
+
+function startComposerPixelFx() {
+  stopComposerPixelFx();
+  const wrap = document.getElementById('composer-canvas');
+  if (!wrap) return;
+
+  wrap.classList.add('is-generating');
+  const canvas = document.createElement('canvas');
+  canvas.className = 'composer-pixel-fx';
+  canvas.width = 256;
+  canvas.height = 256;
+  canvas.setAttribute('aria-hidden', 'true');
+  wrap.innerHTML = '';
+  wrap.appendChild(canvas);
+
+  const state = {
+    canvas,
+    img: null,
+    t: 0.15,
+    raf: 0,
+    swapTimer: 0,
+    started: performance.now(),
+  };
+  composerPixelAnim = state;
+
+  const loadRandom = () => {
+    const id = 1 + Math.floor(Math.random() * 1000);
+    loadImageEl(collectionUrl(id))
+      .then((img) => {
+        if (composerPixelAnim !== state) return;
+        state.img = img;
+        state.t = 0.08 + Math.random() * 0.2;
+      })
+      .catch(() => { /* ignore */ });
+  };
+  loadRandom();
+  // Swap random Moze every ~280ms so it feels alive while layers load
+  state.swapTimer = setInterval(loadRandom, 280);
+
+  const tick = (now) => {
+    if (composerPixelAnim !== state) return;
+    const elapsed = (now - state.started) / 1000;
+    // Pulse pixelation 0.15 → 0.55 → 0.2 (never fully clear until real render)
+    const pulse = 0.2 + 0.35 * (0.5 + 0.5 * Math.sin(elapsed * 4.2));
+    if (state.img) drawPixelReveal(state.canvas, state.img, pulse);
+    else {
+      // noise placeholder until first image loads
+      const ctx = state.canvas.getContext('2d');
+      if (ctx) {
+        const g = ctx.createImageData(32, 32);
+        for (let i = 0; i < g.data.length; i += 4) {
+          const v = 80 + Math.random() * 120;
+          g.data[i] = g.data[i + 1] = g.data[i + 2] = v;
+          g.data[i + 3] = 255;
+        }
+        const off = document.createElement('canvas');
+        off.width = 32;
+        off.height = 32;
+        off.getContext('2d').putImageData(g, 0, 0);
+        ctx.imageSmoothingEnabled = false;
+        ctx.clearRect(0, 0, 256, 256);
+        ctx.drawImage(off, 0, 0, 256, 256);
+      }
+    }
+    state.raf = requestAnimationFrame(tick);
+  };
+  state.raf = requestAnimationFrame(tick);
+}
+
+/** Final image: pixel → clear reveal */
+async function revealComposerResult(dataUrl, token) {
+  const wrap = document.getElementById('composer-canvas');
+  if (!wrap) return;
+  stopComposerPixelFx();
+
+  const canvas = document.createElement('canvas');
+  canvas.className = 'composer-pixel-fx';
+  canvas.width = 256;
+  canvas.height = 256;
+  wrap.innerHTML = '';
+  wrap.appendChild(canvas);
+
+  let img;
+  try {
+    img = await loadImageEl(dataUrl);
+  } catch {
+    wrap.innerHTML = `<img src="${dataUrl}" alt="Generated Moze" class="composer-preview">`;
+    wrap.classList.remove('is-generating');
+    return;
+  }
+  if (token !== renderComposerToken) return;
+
+  const steps = [0.12, 0.22, 0.35, 0.5, 0.68, 0.85, 1];
+  for (const t of steps) {
+    if (token !== renderComposerToken) return;
+    drawPixelReveal(canvas, img, t);
+    await sleep(38);
+  }
+  if (token !== renderComposerToken) return;
+  wrap.innerHTML = `<img src="${dataUrl}" alt="Generated Moze" class="composer-preview">`;
+  wrap.classList.remove('is-generating');
+}
+
+async function renderComposer({ withPixelFx = false } = {}) {
   const wrap = document.getElementById('composer-canvas');
   const caption = document.getElementById('composer-caption');
   const downloadBtn = document.getElementById('download-moze');
+  const randomBtn = document.getElementById('random-traits');
   const token = ++renderComposerToken;
-  const hasPreview = !!wrap.querySelector('.composer-preview');
 
-  if (!hasPreview) {
+  if (downloadBtn) downloadBtn.disabled = true;
+  if (randomBtn) randomBtn.disabled = true;
+
+  if (withPixelFx) {
+    startComposerPixelFx();
+    if (caption) caption.textContent = 'Generating…';
+  } else if (!wrap.querySelector('.composer-preview') && !wrap.querySelector('.composer-pixel-fx')) {
     wrap.innerHTML = '<div class="composer-empty">Generating…</div>';
-    if (downloadBtn) downloadBtn.disabled = true;
   }
 
   try {
@@ -1055,22 +1171,32 @@ async function renderComposer() {
     if (token !== renderComposerToken) return;
 
     composerDataUrl = canvas.toDataURL('image/png');
-    const preview = wrap.querySelector('.composer-preview');
 
-    if (preview) {
-      preview.src = composerDataUrl;
+    if (withPixelFx || wrap.querySelector('.composer-pixel-fx')) {
+      await revealComposerResult(composerDataUrl, token);
     } else {
-      wrap.innerHTML = `<img src="${composerDataUrl}" alt="Generated Moze" class="composer-preview">`;
+      const preview = wrap.querySelector('.composer-preview');
+      if (preview) {
+        preview.src = composerDataUrl;
+      } else {
+        wrap.innerHTML = `<img src="${composerDataUrl}" alt="Generated Moze" class="composer-preview">`;
+      }
+      wrap.classList.remove('is-generating');
     }
 
+    if (token !== renderComposerToken) return;
     if (caption) caption.textContent = traitSummary(selectedTraits);
     if (downloadBtn) downloadBtn.disabled = false;
   } catch {
     if (token !== renderComposerToken) return;
+    stopComposerPixelFx();
     composerDataUrl = null;
+    wrap.classList.remove('is-generating');
     wrap.innerHTML = '<div class="composer-empty">Could not generate — check trait layers</div>';
     if (caption) caption.textContent = '';
     if (downloadBtn) downloadBtn.disabled = true;
+  } finally {
+    if (token === renderComposerToken && randomBtn) randomBtn.disabled = false;
   }
 }
 
@@ -1081,7 +1207,7 @@ function randomizeTraits() {
   }
   renderTraitTabs();
   renderTraitItems();
-  renderComposer();
+  renderComposer({ withPixelFx: true });
 }
 
 function downloadMoze() {

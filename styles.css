@@ -1429,7 +1429,8 @@ li { margin: 0.3em 0; }
 }
 
 .composer-canvas img,
-.composer-canvas .composer-preview {
+.composer-canvas .composer-preview,
+.composer-canvas .composer-pixel-fx {
   width: 100%;
   height: 100%;
   object-fit: contain;
@@ -1437,6 +1438,33 @@ li { margin: 0.3em 0; }
   margin: 0;
   max-width: none;
   display: block;
+}
+
+.composer-canvas .composer-pixel-fx {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.composer-canvas.is-generating {
+  outline: 2px solid var(--neon);
+  outline-offset: 2px;
+}
+
+.composer-canvas.is-generating::after {
+  content: 'Generating…';
+  position: absolute;
+  left: 50%;
+  bottom: 0.45em;
+  transform: translateX(-50%);
+  font-size: 0.68em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #fff;
+  background: rgba(92, 26, 46, 0.72);
+  padding: 0.2em 0.55em;
+  pointer-events: none;
+  z-index: 2;
 }
 
 .composer-canvas img:hover { border: none; }

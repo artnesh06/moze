@@ -1017,14 +1017,17 @@ async function composeMoze(traits) {
   canvas.height = COMPOSER_SIZE;
   const ctx = canvas.getContext('2d');
 
+  // Load all layers in parallel (much faster than sequential)
+  const jobs = [];
   for (const layer of traitData.layerOrder) {
     const name = traits[layer];
     if (isBlankTrait(name)) continue;
-
     const item = getTraitItem(layer, name);
     if (!item) continue;
-
-    const img = await loadTraitImage(item.image);
+    jobs.push(loadTraitImage(item.image));
+  }
+  const images = await Promise.all(jobs);
+  for (const img of images) {
     ctx.drawImage(img, 0, 0, COMPOSER_SIZE, COMPOSER_SIZE);
   }
 

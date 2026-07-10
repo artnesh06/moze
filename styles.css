@@ -114,19 +114,21 @@ body {
   flex-shrink: 0;
 }
 
+a.stats-cta,
 .stats-cta {
   flex-shrink: 0;
   padding: 0.45em 0.9em;
-  background: #2081e2;
+  background: #2081e2 !important;
   color: #fff !important;
-  border: 1px solid #1868b7;
+  border: 1px solid #1868b7 !important;
   font-weight: 800;
   font-size: 0.8em;
   text-decoration: none !important;
 }
 
+a.stats-cta:hover,
 .stats-cta:hover {
-  background: #1868b7;
+  background: #1868b7 !important;
   color: #fff !important;
 }
 

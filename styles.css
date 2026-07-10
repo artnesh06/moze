@@ -380,6 +380,95 @@ a.stats-cta:hover,
   text-align: center;
 }
 
+/* Side-by-side prize cards — click to switch active raffle */
+.raffle-prize-picker {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: stretch;
+  gap: 0.75em 1em;
+  margin: 0.25em 0 0.65em;
+}
+
+.raffle-prize-card {
+  appearance: none;
+  -webkit-appearance: none;
+  font-family: inherit;
+  cursor: pointer;
+  background: transparent;
+  border: 2px solid transparent;
+  padding: 0.4em 0.45em 0.55em;
+  max-width: 200px;
+  flex: 1 1 140px;
+  color: inherit;
+  text-align: center;
+  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  pointer-events: auto;
+  position: relative;
+  z-index: 2;
+}
+
+.raffle-prize-card:hover {
+  border-color: var(--brown);
+}
+
+.raffle-prize-card:focus {
+  outline: none;
+}
+
+.raffle-prize-card:focus-visible {
+  border-color: var(--neon-deep);
+  box-shadow: 0 0 0 2px var(--neon);
+}
+
+.raffle-prize-card.is-active {
+  border-color: var(--neon-deep);
+  background: linear-gradient(180deg, #f8ffd4, #fffef5);
+  box-shadow: 3px 3px 0 rgba(92, 26, 46, 0.12);
+  transform: translateY(-2px);
+}
+
+.raffle-prize-card .raffle-prize-frame,
+.raffle-prize-card .raffle-prize-frame img,
+.raffle-prize-card .raffle-prize-badge,
+.raffle-prize-card .raffle-prize-id {
+  pointer-events: none; /* clicks go to the button */
+}
+
+/* Both prizes always use full Moze-style frame (same border + outline) */
+.raffle-prize-card .raffle-prize-frame {
+  width: 100%;
+  max-width: 168px;
+  border: 3px solid var(--neon-deep);
+  outline: 2px solid var(--neon);
+  outline-offset: 3px;
+  box-shadow: 3px 3px 0 rgba(92, 26, 46, 0.18);
+  background: #c6e607;
+}
+
+.raffle-prize-card.is-active .raffle-prize-frame {
+  /* same frame — selection shown by card chrome, not thinner/thicker art border */
+  border: 3px solid var(--neon-deep);
+  outline: 2px solid var(--neon);
+  outline-offset: 3px;
+}
+
+.raffle-card-label {
+  display: block;
+  margin-top: 0.45em;
+  font-weight: 800;
+  font-size: 0.88em;
+  color: var(--brown);
+  line-height: 1.2;
+}
+
+.raffle-card-sub {
+  display: block;
+  margin-top: 0.12em;
+  color: var(--muted);
+  font-size: 0.75em;
+}
+
 .raffle-prize-frame {
   position: relative;
   display: inline-block;
@@ -393,6 +482,13 @@ a.stats-cta:hover,
   outline: 2px solid var(--neon);
   outline-offset: 3px;
   box-shadow: 3px 3px 0 rgba(92, 26, 46, 0.18);
+}
+
+.raffle-prize-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .raffle-opensea-btn {

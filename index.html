@@ -12,7 +12,7 @@
   <meta name="twitter:site" content="@mozenft_">
   <link rel="icon" href="assets/ico.png" type="image/png">
   <meta name="theme-color" content="#5c1a2e">
-  <link rel="stylesheet" href="styles.css?v=84">
+  <link rel="stylesheet" href="styles.css?v=87">
 </head>
 <body>
 
@@ -143,27 +143,64 @@
       </div>
     </div>
 
-    <!-- Soft $MOZE raffle (1 active) — prize: Moze #30 (creator's) -->
+    <!-- Soft $MOZE raffles — pick a prize, enter with $MOZE -->
     <div class="m_box" id="raffle">
       <div class="m_box_bar"><h2>Raffle · $MOZE</h2></div>
       <p class="centered-text stake-soft">
         Spend your <strong>$MOZE</strong> (from staking) for raffle tickets.
+        Click a prize to switch.
       </p>
       <div class="raffle-panel">
         <div class="raffle-prize-art">
-          <div class="raffle-prize-frame">
-            <img
-              id="raffle-prize-img"
-              src="assets/Collection/30.webp?v=80"
-              alt="Prize Moze #30"
-              width="512"
-              height="512"
-              decoding="async"
+          <!-- Side-by-side prize picker: click to select active raffle -->
+          <div class="raffle-prize-picker" id="raffle-prize-picker" role="tablist" aria-label="Choose raffle prize">
+            <button
+              type="button"
+              class="raffle-prize-card is-active"
+              role="tab"
+              aria-selected="true"
+              data-raffle-slug="moze-raffle-1"
+              id="raffle-card-1"
             >
-            <span class="raffle-prize-badge">PRIZE</span>
-            <span class="raffle-prize-id">#30</span>
+              <span class="raffle-prize-frame">
+                <img
+                  src="assets/Collection/30.webp?v=80"
+                  alt="Prize Moze #30"
+                  width="512"
+                  height="512"
+                  decoding="async"
+                >
+                <span class="raffle-prize-badge">PRIZE</span>
+                <span class="raffle-prize-id">#30</span>
+              </span>
+              <span class="raffle-card-label">Moze #30</span>
+              <span class="raffle-card-sub fine">Founder</span>
+            </button>
+            <button
+              type="button"
+              class="raffle-prize-card"
+              role="tab"
+              aria-selected="false"
+              data-raffle-slug="moze-raffle-2"
+              id="raffle-card-2"
+            >
+              <span class="raffle-prize-frame">
+                <img
+                  src="assets/raffle/robin-frogs-4284.webp"
+                  alt="Prize Robin Frogs #4284"
+                  width="512"
+                  height="512"
+                  decoding="async"
+                >
+                <span class="raffle-prize-badge">PRIZE</span>
+                <span class="raffle-prize-id">#4284</span>
+              </span>
+              <span class="raffle-card-label">Robin Frogs #4284</span>
+              <span class="raffle-card-sub fine">Collab</span>
+            </button>
           </div>
-          <p class="raffle-prize-caption centered-text fine">
+
+          <p id="raffle-prize-caption" class="raffle-prize-caption centered-text fine">
             Win <strong>Moze #30</strong> — from the founder’s bag
           </p>
           <a
@@ -172,7 +209,7 @@
             href="https://opensea.io/item/robinhood/0x0e579bcec21ae9dc5400db46cab67d5a8d0a58cc/30"
             target="_blank"
             rel="noopener"
-          >View #30 on OpenSea ↗</a>
+          >View prize on OpenSea ↗</a>
 
           <!-- Countdown — same style as stake stats -->
           <div class="raffle-countdown" id="raffle-countdown" aria-live="polite">
@@ -464,6 +501,6 @@
     // Optional: override API for local backend
     // window.MOZE_API = 'http://localhost:3000';
   </script>
-  <script src="script.js?v=84"></script>
+  <script src="script.js?v=87"></script>
 </body>
 </html>

@@ -528,15 +528,25 @@ let leaderboardLoading = false;
 
 /* ── moze-api (separate backend) ── */
 // Production: https://api.mozestreet.art
-// Local override: localStorage.setItem('moze-api','http://localhost:3000') or window.MOZE_API
-// Override: window.MOZE_API or localStorage moze-api
-// Default: api-moze.artnesh.cloud until A record api.mozestreet.art → 161.97.156.23 is live
-// Then switch default back to https://api.mozestreet.art
-let API_BASE = String(
-  (typeof window !== 'undefined' && window.MOZE_API) ||
-  (typeof localStorage !== 'undefined' && localStorage.getItem('moze-api')) ||
-  'https://api.mozestreet.art'
-).replace(/\/$/, '');
+// Local: on 127.0.0.1/localhost auto-use :3000 (unless override).
+// Override: window.MOZE_API or localStorage.setItem('moze-api','http://localhost:3000')
+function resolveApiBase() {
+  if (typeof window !== 'undefined' && window.MOZE_API) {
+    return String(window.MOZE_API).replace(/\/$/, '');
+  }
+  try {
+    const saved = localStorage.getItem('moze-api');
+    if (saved) return String(saved).replace(/\/$/, '');
+  } catch { /* ignore */ }
+  try {
+    const h = typeof location !== 'undefined' ? location.hostname : '';
+    if (h === 'localhost' || h === '127.0.0.1') {
+      return 'http://127.0.0.1:3000';
+    }
+  } catch { /* ignore */ }
+  return 'https://api.mozestreet.art';
+}
+let API_BASE = resolveApiBase();
 
 let apiOnline = null; // null unknown, true/false
 
@@ -2990,10 +3000,98 @@ function initStake() {
   initRaffle();
 }
 
-/* ── Soft $MOZE Raffle ── */
+/* ── Soft $MOZE Raffle (multi-prize picker) ── */
 let raffleState = null;
+let raffleList = []; // light list from API
 let raffleQty = 1;
 let raffleCountdownTimer = null;
+/** Selected raffle id (persist so refresh keeps picker). */
+const RAFFLE_SEL_KEY = 'moze-raffle-selected-id';
+let raffleSelectedId = null;
+
+/** Frontend prize meta by slug (images / OpenSea links). */
+const RAFFLE_PRIZE_META = {
+  'moze-raffle-1': {
+    captionHtml: 'Win <strong>Moze #30</strong> — from the founder’s bag',
+    opensea:
+      'https://opensea.io/item/robinhood/0x0e579bcec21ae9dc5400db46cab67d5a8d0a58cc/30',
+    openseaLabel: 'View #30 on OpenSea ↗',
+  },
+  'moze-raffle-2': {
+    captionHtml: 'Win <strong>Robin Frogs #4284</strong> — collab prize',
+    opensea:
+      'https://opensea.io/item/robinhood/0x748af7baa726b49316573a124f2644b5638452d7/4284',
+    openseaLabel: 'View #4284 on OpenSea ↗',
+  },
+};
+
+function loadRaffleSelectedId() {
+  try {
+    const n = Number(localStorage.getItem(RAFFLE_SEL_KEY));
+    return Number.isFinite(n) && n > 0 ? n : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveRaffleSelectedId(id) {
+  raffleSelectedId = id;
+  try {
+    if (id != null) localStorage.setItem(RAFFLE_SEL_KEY, String(id));
+  } catch { /* ignore */ }
+}
+
+function applyPrizeMeta(slug) {
+  const meta = RAFFLE_PRIZE_META[slug] || null;
+  const cap = document.getElementById('raffle-prize-caption');
+  const link = document.getElementById('raffle-opensea');
+  if (cap && meta) cap.innerHTML = meta.captionHtml;
+  else if (cap && raffleState?.prizeLabel) {
+    cap.innerHTML = `Win <strong>${raffleState.prizeLabel}</strong>`;
+  }
+  if (link && meta) {
+    link.href = meta.opensea;
+    link.textContent = meta.openseaLabel;
+  }
+}
+
+/** Highlight picker card immediately (before API returns). */
+function setPickerActiveSlug(slug) {
+  document.querySelectorAll('.raffle-prize-card').forEach((btn) => {
+    const s = btn.getAttribute('data-raffle-slug');
+    const active = s && s === slug;
+    btn.classList.toggle('is-active', !!active);
+    btn.setAttribute('aria-selected', active ? 'true' : 'false');
+    const row = raffleList.find((r) => r.slug === s);
+    const sub = btn.querySelector('.raffle-card-sub');
+    if (sub) {
+      const base = s === 'moze-raffle-2' ? 'Collab' : 'Founder';
+      if (row) {
+        const t = Number(row.totalTickets) || 0;
+        sub.textContent = t > 0 ? `${base} · ${t} tix` : base;
+      }
+    }
+  });
+  applyPrizeMeta(slug);
+}
+
+function syncRafflePickerUi() {
+  const slug = raffleState?.slug || '';
+  setPickerActiveSlug(slug);
+  // Only persist when API raffle matches what user selected (avoid prod snapping back to #1)
+  const id = raffleState?.id;
+  const wanted = raffleSelectedId || loadRaffleSelectedId();
+  if (id != null && (wanted == null || Number(wanted) === Number(id))) {
+    saveRaffleSelectedId(id);
+  }
+}
+
+function slugToRaffleId(slug) {
+  const row = raffleList.find((r) => r.slug === slug);
+  if (row?.id) return Number(row.id);
+  const fallback = { 'moze-raffle-1': 1, 'moze-raffle-2': 2 }[slug];
+  return fallback || null;
+}
 
 function setRaffleStatus(msg, isError = false) {
   const el = document.getElementById('raffle-status');
@@ -3147,7 +3245,16 @@ function updateRaffleCostLine() {
 }
 
 function renderRaffle(data) {
+  raffleList = Array.isArray(data?.raffles) ? data.raffles : [];
   raffleState = data?.raffle || null;
+  // Persist only when response matches selection (multi-raffle)
+  if (raffleState?.id != null) {
+    const wanted = raffleSelectedId || loadRaffleSelectedId();
+    if (wanted == null || Number(wanted) === Number(raffleState.id)) {
+      saveRaffleSelectedId(raffleState.id);
+    }
+  }
+
   const setText = (id, v) => {
     const el = document.getElementById(id);
     if (el) el.textContent = v;
@@ -3165,10 +3272,11 @@ function renderRaffle(data) {
     setText('raffle-your-moze', '—');
     document.getElementById('raffle-enter')?.setAttribute('disabled', 'disabled');
     updateRaffleCostLine();
+    syncRafflePickerUi();
     return;
   }
 
-  setText('raffle-title', raffleState.title || 'Moze Raffle #1');
+  setText('raffle-title', raffleState.title || 'Moze Raffle');
   setText('raffle-prize', raffleState.prizeLabel ? `Prize: ${raffleState.prizeLabel}` : 'Prize: TBD');
   // Description copy hidden in UI (kept on API for metadata only)
   const descEl = document.getElementById('raffle-desc');
@@ -3206,6 +3314,7 @@ function renderRaffle(data) {
   raffleQty = clampRaffleQty(raffleQty);
   updateRaffleCostLine();
   startRaffleCountdown();
+  syncRafflePickerUi();
 
   // Who entered — always visible so buyers can find the list
   const top = Array.isArray(raffleState.top) ? raffleState.top : [];
@@ -3246,8 +3355,20 @@ async function refreshRaffle() {
       return null;
     }
     const you = stakeAccount ? String(stakeAccount).toLowerCase() : '';
-    const q = you ? `?you=${encodeURIComponent(you)}` : '';
+    const params = new URLSearchParams();
+    if (you) params.set('you', you);
+    const sel = raffleSelectedId || loadRaffleSelectedId();
+    if (sel) params.set('id', String(sel));
+    const q = params.toString() ? `?${params}` : '';
     const data = await apiFetch(`/v1/raffle${q}`);
+    // If selected id missing, fall back to first open (avoid loop)
+    if (!data?.raffle && Array.isArray(data?.raffles) && data.raffles.length) {
+      const open = data.raffles.find((r) => r.open) || data.raffles[0];
+      if (open?.id && open.id !== sel) {
+        saveRaffleSelectedId(open.id);
+        return refreshRaffle();
+      }
+    }
     renderRaffle(data);
     if (!data?.raffle) setRaffleStatus('No raffle configured yet.');
     else if (!data.raffle.open) setRaffleStatus('This raffle is closed.');
@@ -3259,6 +3380,40 @@ async function refreshRaffle() {
     setRaffleStatus(err?.message || 'Could not load raffle', true);
     return null;
   }
+}
+
+async function selectRaffleBySlug(slug) {
+  if (!slug) return;
+  // Already showing this prize — still re-fetch (no-op visual)
+  const id = slugToRaffleId(slug);
+  if (id != null) saveRaffleSelectedId(id);
+  // Instant UI feedback so click never feels dead
+  setPickerActiveSlug(slug);
+  setRaffleStatus('Loading raffle…');
+  try {
+    await refreshRaffle();
+    // If API is old/prod and ignored ?id=, force-correct picker from selection
+    if (raffleState?.slug && raffleState.slug !== slug && id != null) {
+      // Production has no raffle #2 yet — keep caption/picker on what user clicked
+      if (slug === 'moze-raffle-2') {
+        setPickerActiveSlug(slug);
+        setTextSafe('raffle-title', 'Moze Raffle #2 — Robin Frogs #4284');
+        setTextSafe('raffle-prize', 'Prize: Robin Frogs #4284');
+        setRaffleStatus(
+          'Raffle #2 needs local API (http://127.0.0.1:3000). Production not deployed yet.',
+          true
+        );
+      }
+    }
+  } catch (err) {
+    setPickerActiveSlug(slug);
+    setRaffleStatus(err?.message || 'Could not load raffle', true);
+  }
+}
+
+function setTextSafe(id, v) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = v;
 }
 
 async function enterRaffleWithMoze() {
@@ -3375,6 +3530,27 @@ async function enterRaffleWithMoze() {
 }
 
 function initRaffle() {
+  raffleSelectedId = loadRaffleSelectedId();
+
+  // Bind each prize card (more reliable than only delegated click)
+  document.querySelectorAll('.raffle-prize-card').forEach((card) => {
+    card.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const slug = card.getAttribute('data-raffle-slug');
+      if (!slug) return;
+      // Allow re-click to refresh; only skip if already selected AND loading not needed
+      if (slug === raffleState?.slug && card.classList.contains('is-active')) {
+        setPickerActiveSlug(slug);
+        return;
+      }
+      selectRaffleBySlug(slug).catch((err) => {
+        console.warn('[raffle select]', err);
+        setRaffleStatus(err?.message || 'Could not switch raffle', true);
+      });
+    });
+  });
+
   document.getElementById('raffle-qty-minus')?.addEventListener('click', () => {
     raffleQty = clampRaffleQty(raffleQty - 1);
     updateRaffleCostLine();

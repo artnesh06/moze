@@ -2277,6 +2277,28 @@ li { margin: 0.3em 0; }
   padding: 1.25em 0.5em !important;
 }
 
+.lb-see-more-btn {
+  padding: 0.5em 1.6em;
+  background: var(--cream);
+  color: var(--brown);
+  border: 1px solid var(--brown);
+  font-family: inherit;
+  font-size: 0.85em;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.03em;
+  transition: background 0.15s ease;
+}
+
+.lb-see-more-btn:hover {
+  background: var(--neon-soft);
+  border-color: var(--neon-deep);
+}
+
+.lb-see-more-row td {
+  border-bottom: none !important;
+}
+
 .lb-footnote {
   margin: 0.55em 0.15em 0 !important;
 }

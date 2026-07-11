@@ -813,6 +813,9 @@ function initTraits() {
 const LB_CACHE_KEY = 'moze-stakers-lb-v3';
 const LB_CACHE_TTL = 5 * 60 * 1000; // 5 min
 const LB_TOP_N = 25;
+const LB_INITIAL_SHOW = 10;
+const LB_LOAD_MORE = 10;
+let lbCurrentShown = LB_INITIAL_SHOW;
 
 function softStakePointsFor(addr) {
   try {
@@ -889,10 +892,14 @@ async function buildHoldersMap({ allHolders = true } = {}) {
   return { rows, supply, scannedAt: Date.now() };
 }
 
-function renderLeaderboardTable(data) {
+function renderLeaderboardTable(data, keepShown = false) {
   const tbody = document.getElementById('lb-tbody');
   const meta = document.getElementById('lb-meta');
   if (!tbody) return;
+
+  // Reset to initial 10 on fresh load, keep count on "See More" click
+  if (!keepShown) lbCurrentShown = LB_INITIAL_SHOW;
+
   const you = (stakeAccount || '').toLowerCase();
   // Extra guard: never show non-stakers
   const stakers = (data.rows || []).filter((r) => (Number(r.softMoze) || 0) > 0 || (Number(r.staked) || 0) > 0);
@@ -901,7 +908,10 @@ function renderLeaderboardTable(data) {
     tbody.innerHTML = '<tr><td colspan="4" class="lb-empty">No stakers yet — be the first.</td></tr>';
     return;
   }
-  tbody.innerHTML = top.map((row, i) => {
+
+  // Show only up to lbCurrentShown
+  const displayed = top.slice(0, lbCurrentShown);
+  tbody.innerHTML = displayed.map((row, i) => {
     const isYou = you && row.addr === you;
     const soft = row.softMoze > 0 ? formatMoze(row.softMoze) : '0';
     return (
@@ -914,10 +924,10 @@ function renderLeaderboardTable(data) {
     );
   }).join('');
 
-  // If you're a staker but outside top N, append your row
+  // If you're a staker but outside currently shown range, append your row
   if (you) {
     const yourIdx = stakers.findIndex((r) => r.addr === you);
-    if (yourIdx >= LB_TOP_N) {
+    if (yourIdx >= lbCurrentShown) {
       const row = stakers[yourIdx];
       const soft = row.softMoze > 0 ? formatMoze(row.softMoze) : '0';
       tbody.innerHTML += (
@@ -931,9 +941,24 @@ function renderLeaderboardTable(data) {
     }
   }
 
+  // "See More" button if there are more stakers to reveal
+  if (lbCurrentShown < top.length) {
+    const remaining = top.length - lbCurrentShown;
+    const seeMoreRow = document.createElement('tr');
+    seeMoreRow.className = 'lb-see-more-row';
+    seeMoreRow.innerHTML = `<td colspan="4" style="text-align:center;padding:10px 0 6px;">` +
+      `<button class="lb-see-more-btn">See More (${remaining} left)</button></td>`;
+    tbody.appendChild(seeMoreRow);
+    const btn = seeMoreRow.querySelector('.lb-see-more-btn');
+    btn.addEventListener('click', () => {
+      lbCurrentShown += LB_LOAD_MORE;
+      renderLeaderboardTable(data, true);
+    });
+  }
+
   if (meta) {
     const when = new Date(data.scannedAt).toLocaleTimeString();
-    meta.textContent = `Top ${Math.min(LB_TOP_N, stakers.length)} stakers · ${stakers.length} total · ${when}`;
+    meta.textContent = `Showing ${Math.min(lbCurrentShown, top.length)} of ${stakers.length} stakers · ${when}`;
   }
 }
 

@@ -46,12 +46,12 @@ db.exec(`
 
 // Default settings
 const defaults = [
-  ['moze_ca', '0x0e579bcec21ae9dc5400db46cab67d5a8d0a58cc'],
-  ['rh_rpc', 'https://rpc.mainnet.chain.robinhood.com'],
-  ['sales_webhook', ''],
+  ['moze_ca', process.env.MOZE_CA || '0x0e579bcec21ae9dc5400db46cab67d5a8d0a58cc'],
+  ['rh_rpc', process.env.RH_RPC || 'https://rpc.mainnet.chain.robinhood.com'],
+  ['sales_webhook', process.env.SALES_WEBHOOK_URL || ''],
   ['sales_channel_id', ''],
-  ['verify_channel_id', ''],
-  ['member_role', 'Werido'],
+  ['verify_channel_id', process.env.VERIFY_CHANNEL_ID || ''],
+  ['member_role', process.env.MEMBER_ROLE || 'Verified'],
 ];
 
 const insertDefault = db.prepare(

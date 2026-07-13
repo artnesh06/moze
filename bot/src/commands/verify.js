@@ -156,7 +156,7 @@ async function handleCheckWalletModal(interaction) {
         .setLabel('Your wallet address')
         .setStyle(TextInputStyle.Short)
         .setPlaceholder('0x...')
-        .setMinLength(42).setMaxLength(42).setRequired(true)
+        .setMinLength(10).setMaxLength(100).setRequired(true)
     )
   );
   await interaction.showModal(modal);

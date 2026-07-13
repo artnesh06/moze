@@ -5,7 +5,7 @@ const {
   setupVerifyCommand, setupHolderCommand,
   handleCaptcha, handleVerify, handleCheck,
   handleSetupVerify, handleSetupHolder,
-  handleButtonInteraction,
+  handleButtonInteraction, handleModalSubmit,
 } = require('./commands/verify');
 const { startSalesTracker } = require('./sales');
 const config = require('./config');
@@ -60,6 +60,11 @@ client.once(Events.ClientReady, async (c) => {
 
 client.on(Events.InteractionCreate, async (interaction) => {
   try {
+    // Modal submissions
+    if (interaction.isModalSubmit()) {
+      return await handleModalSubmit(interaction);
+    }
+
     // Button interactions
     if (interaction.isButton()) {
       return await handleButtonInteraction(interaction);

@@ -73,10 +73,16 @@ function startSalesListener(onSale) {
 
   console.log('[chain] Listening for Transfer events on Moze contract...');
 
-  // Reconnect on provider error
+  // Reconnect on provider error — max 1 reconnect per 30s
+  let reconnecting = false;
   provider.on('error', (err) => {
-    console.error('[chain] Provider error, reconnecting in 10s:', err.message);
-    setTimeout(() => startSalesListener(onSale), 10000);
+    if (reconnecting) return;
+    reconnecting = true;
+    console.error('[chain] Provider error, reconnecting in 30s:', err.message);
+    setTimeout(() => {
+      reconnecting = false;
+      startSalesListener(onSale);
+    }, 30000);
   });
 }
 

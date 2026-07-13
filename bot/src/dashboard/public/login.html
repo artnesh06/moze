@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Moze Bot — Admin Login</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Hiragino Kaku Gothic Pro", arial, sans-serif;
+      background: #1a1a1a;
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card {
+      background: #111;
+      border: 2px solid #C6E607;
+      padding: 2.5em 2em;
+      width: min(360px, 92vw);
+      text-align: center;
+    }
+    .logo { font-size: 2em; font-weight: 900; color: #C6E607; margin-bottom: 0.25em; }
+    .sub { color: #888; font-size: 0.85em; margin-bottom: 1.75em; }
+    input[type="password"] {
+      width: 100%;
+      padding: 0.75em 1em;
+      font-size: 1em;
+      background: #222;
+      border: 1px solid #444;
+      color: #fff;
+      margin-bottom: 1em;
+      font-family: inherit;
+    }
+    input:focus { outline: none; border-color: #C6E607; }
+    button {
+      width: 100%;
+      padding: 0.75em;
+      background: #C6E607;
+      color: #1a1a1a;
+      border: none;
+      font-size: 1em;
+      font-weight: 800;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    button:hover { background: #d4ff2a; }
+    .error { color: #ff5555; font-size: 0.85em; margin-bottom: 0.75em; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">Moze Bot</div>
+    <div class="sub">Admin Dashboard</div>
+    <form method="POST" action="/login">
+      <input type="password" name="password" placeholder="Password" autofocus required>
+      <button type="submit">Login</button>
+    </form>
+    <script>
+      const p = new URLSearchParams(location.search);
+      if (p.get('error')) {
+        const el = document.createElement('p');
+        el.className = 'error';
+        el.textContent = 'Wrong password.';
+        document.querySelector('form').before(el);
+      }
+    </script>
+  </div>
+</body>
+</html>

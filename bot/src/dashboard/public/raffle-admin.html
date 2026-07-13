@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Moze — Raffle Admin</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Hiragino Kaku Gothic Pro", arial, sans-serif;
+      background: #1a1a1a;
+      color: #eee;
+      min-height: 100vh;
+    }
+    header {
+      background: #111;
+      border-bottom: 2px solid #C6E607;
+      padding: 0.85em 1.5em;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1em;
+    }
+    .logo { font-size: 1.3em; font-weight: 900; color: #C6E607; }
+    .logo span { color: #888; font-weight: 400; font-size: 0.8em; margin-left: 0.5em; }
+    .nav { display: flex; gap: 1em; align-items: center; }
+    .nav a { color: #888; font-size: 0.85em; text-decoration: none; }
+    .nav a:hover { color: #C6E607; }
+    .nav a.active { color: #C6E607; font-weight: 700; }
+    .wrap { max-width: 860px; margin: 0 auto; padding: 1.5em 1em; }
+    .section { background: #111; border: 1px solid #333; margin-bottom: 1.5em; }
+    .section-head {
+      background: #C6E607; color: #1a1a1a;
+      font-weight: 800; padding: 0.6em 1em;
+      font-size: 0.9em; text-transform: uppercase; letter-spacing: 0.05em;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .section-body { padding: 1.25em 1em; }
+    label { display: block; font-size: 0.8em; color: #888; margin-bottom: 0.3em; margin-top: 0.85em; text-transform: uppercase; letter-spacing: 0.04em; }
+    label:first-child { margin-top: 0; }
+    input, textarea, select {
+      width: 100%; padding: 0.6em 0.8em;
+      background: #222; border: 1px solid #444; color: #eee;
+      font-size: 0.95em; font-family: inherit;
+    }
+    input:focus, textarea:focus, select:focus { outline: none; border-color: #C6E607; }
+    textarea { resize: vertical; min-height: 60px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 1em; }
+    .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1em; }
+    @media (max-width: 600px) { .row, .row-3 { grid-template-columns: 1fr; } }
+    .btn {
+      padding: 0.6em 1.4em; background: #C6E607; color: #1a1a1a;
+      border: none; font-weight: 800; font-size: 0.9em;
+      cursor: pointer; font-family: inherit; margin-top: 1em;
+    }
+    .btn:hover { background: #d4ff2a; }
+    .btn-danger { background: #ff5555; color: #fff; }
+    .btn-danger:hover { background: #ff3333; }
+    .btn-secondary { background: #333; color: #eee; border: 1px solid #555; }
+    .btn-secondary:hover { background: #444; }
+    .btn-sm { padding: 0.3em 0.8em; font-size: 0.8em; margin-top: 0; }
+    .raffle-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1em; margin-bottom: 1em; }
+    .raffle-card {
+      background: #1a1a1a; border: 1px solid #333;
+      padding: 0.85em; position: relative;
+    }
+    .raffle-card.is-open { border-color: #C6E607; }
+    .raffle-card.is-closed { opacity: 0.6; }
+    .raffle-card-img {
+      width: 100%; aspect-ratio: 1; object-fit: cover;
+      border: 2px solid #333; display: block; margin-bottom: 0.65em;
+      background: #222;
+    }
+    .raffle-card-name { font-weight: 800; font-size: 0.95em; margin-bottom: 0.2em; }
+    .raffle-card-meta { font-size: 0.75em; color: #888; line-height: 1.5; }
+    .badge {
+      display: inline-block; padding: 0.15em 0.5em;
+      font-size: 0.7em; font-weight: 700; margin-right: 0.3em;
+    }
+    .badge-open { background: #C6E607; color: #1a1a1a; }
+    .badge-closed { background: #444; color: #888; }
+    .card-actions { display: flex; gap: 0.4em; margin-top: 0.65em; flex-wrap: wrap; }
+    .preview-img {
+      width: 120px; height: 120px; object-fit: cover;
+      border: 2px solid #C6E607; display: block;
+      background: #222; margin-bottom: 0.5em;
+    }
+    .preview-img[src=""] { display: none; }
+    .hint { font-size: 0.75em; color: #666; margin-top: 0.3em; }
+    .toast {
+      position: fixed; bottom: 1.5em; right: 1.5em;
+      background: #C6E607; color: #1a1a1a;
+      padding: 0.7em 1.2em; font-weight: 700;
+      opacity: 0; transition: opacity 0.2s ease;
+      pointer-events: none; z-index: 99;
+    }
+    .toast.show { opacity: 1; }
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.75);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 50; padding: 1em;
+    }
+    .modal-overlay[hidden] { display: none !important; }
+    .modal {
+      background: #111; border: 2px solid #C6E607;
+      width: min(100%, 580px); max-height: 90vh;
+      overflow-y: auto; padding: 1.5em;
+    }
+    .modal h2 { font-size: 1.1em; color: #C6E607; margin-bottom: 1em; }
+    .modal-actions { display: flex; gap: 0.75em; margin-top: 1.25em; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+<header>
+  <div class="logo">Moze Bot <span>Raffle Admin</span></div>
+  <div class="nav">
+    <a href="/">Dashboard</a>
+    <a href="/raffle-admin.html" class="active">Raffle</a>
+    <a href="/logout">Logout</a>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- Active Raffles -->
+  <div class="section">
+    <div class="section-head">
+      🎟️ Raffles
+      <button class="btn btn-sm" id="new-raffle-btn">+ New Raffle</button>
+    </div>
+    <div class="section-body">
+      <div class="raffle-cards" id="raffle-cards">
+        <div style="color:#555;padding:1em">Loading...</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- New/Edit Raffle Modal -->
+<div class="modal-overlay" id="raffle-modal" hidden>
+  <div class="modal">
+    <h2 id="modal-title">New Raffle</h2>
+    <form id="raffle-form">
+      <input type="hidden" id="raffle-id" name="id">
+
+      <label>Prize Name</label>
+      <input type="text" name="prizeLabel" placeholder="Moze #30" required>
+
+      <label>Raffle Title</label>
+      <input type="text" name="title" placeholder="Moze Raffle #1" required>
+
+      <label>Slug (unique ID, no spaces)</label>
+      <input type="text" name="slug" placeholder="moze-raffle-1" required
+        pattern="[a-z0-9\-]+" title="lowercase letters, numbers, hyphens only">
+
+      <label>Prize Image URL</label>
+      <input type="text" name="imgUrl" placeholder="https://... or /assets/Collection/30.webp" id="img-url-input">
+      <img id="img-preview" class="preview-img" src="" alt="preview">
+      <p class="hint">Bisa URL eksternal atau path lokal dari assets Moze (contoh: /assets/Collection/30.webp)</p>
+
+      <label>OpenSea Link</label>
+      <input type="text" name="opensea" placeholder="https://opensea.io/item/...">
+
+      <label>Caption HTML</label>
+      <textarea name="captionHtml" placeholder="Win <strong>Moze #30</strong> — from the founder's bag"></textarea>
+
+      <div class="row">
+        <div>
+          <label>Ticket Cost ($MOZE)</label>
+          <input type="number" name="ticketCost" placeholder="100" min="1" required>
+        </div>
+        <div>
+          <label>Max Tickets Per Wallet</label>
+          <input type="number" name="maxTicketsPerWallet" placeholder="Leave empty = unlimited" min="1">
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Starts At</label>
+          <input type="datetime-local" name="startsAt" required>
+        </div>
+        <div>
+          <label>Ends At</label>
+          <input type="datetime-local" name="endsAt" required>
+        </div>
+      </div>
+
+      <label>Description (optional)</label>
+      <textarea name="description" placeholder="Describe the prize or rules..."></textarea>
+
+      <label>Label Tag (Founder / Collab / etc)</label>
+      <input type="text" name="labelTag" placeholder="Founder">
+
+      <div class="modal-actions">
+        <button type="submit" class="btn" id="modal-save-btn">Save Raffle</button>
+        <button type="button" class="btn btn-secondary" id="modal-cancel-btn">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const toast = (msg, err) => {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.style.background = err ? '#ff5555' : '#C6E607';
+    el.style.color = err ? '#fff' : '#1a1a1a';
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 3000);
+  };
+
+  let raffles = [];
+
+  // Image preview
+  document.getElementById('img-url-input').addEventListener('input', (e) => {
+    const preview = document.getElementById('img-preview');
+    const val = e.target.value.trim();
+    preview.src = val || '';
+    preview.style.display = val ? 'block' : 'none';
+  });
+
+  // Load raffles
+  async function loadRaffles() {
+    try {
+      const data = await fetch('/api/raffles').then(r => r.json());
+      raffles = data;
+      renderRaffleCards(data);
+    } catch (e) {
+      document.getElementById('raffle-cards').innerHTML =
+        '<div style="color:#ff5555">Failed to load raffles. Make sure bot is running.</div>';
+    }
+  }
+
+  function renderRaffleCards(data) {
+    const wrap = document.getElementById('raffle-cards');
+    if (!data.length) {
+      wrap.innerHTML = '<div style="color:#555;padding:0.5em">No raffles yet. Click + New Raffle to create one.</div>';
+      return;
+    }
+    wrap.innerHTML = data.map(r => {
+      const open = r.open;
+      const ends = r.endsAt ? new Date(r.endsAt).toLocaleDateString() : '—';
+      return `
+        <div class="raffle-card ${open ? 'is-open' : 'is-closed'}">
+          <img class="raffle-card-img" src="${r.imgUrl || ''}" alt="${r.prizeLabel || ''}"
+            onerror="this.style.display='none'">
+          <div class="raffle-card-name">${r.title || r.prizeLabel || '—'}</div>
+          <div class="raffle-card-meta">
+            <span class="badge ${open ? 'badge-open' : 'badge-closed'}">${open ? 'OPEN' : 'CLOSED'}</span>
+            <br>
+            Prize: ${r.prizeLabel || '—'}<br>
+            Cost: ${r.ticketCost || '—'} $MOZE/ticket<br>
+            Ends: ${ends}
+          </div>
+          <div class="card-actions">
+            <button class="btn btn-sm" onclick="editRaffle(${r.id})">Edit</button>
+            <button class="btn btn-sm ${open ? 'btn-danger' : ''}" onclick="toggleRaffle(${r.id}, ${!open})">
+              ${open ? 'Close' : 'Open'}
+            </button>
+            <button class="btn btn-sm btn-danger" onclick="deleteRaffle(${r.id})">Delete</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // Modal
+  const modal = document.getElementById('raffle-modal');
+  const form = document.getElementById('raffle-form');
+
+  document.getElementById('new-raffle-btn').addEventListener('click', () => {
+    form.reset();
+    document.getElementById('raffle-id').value = '';
+    document.getElementById('modal-title').textContent = 'New Raffle';
+    document.getElementById('img-preview').src = '';
+    document.getElementById('img-preview').style.display = 'none';
+    // Default starts now
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    form.elements.startsAt.value = now.toISOString().slice(0, 16);
+    modal.hidden = false;
+  });
+
+  document.getElementById('modal-cancel-btn').addEventListener('click', () => {
+    modal.hidden = true;
+  });
+
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.hidden = true;
+  });
+
+  window.editRaffle = (id) => {
+    const r = raffles.find(x => x.id === id);
+    if (!r) return;
+    document.getElementById('modal-title').textContent = 'Edit Raffle';
+    document.getElementById('raffle-id').value = r.id;
+    form.elements.prizeLabel.value = r.prizeLabel || '';
+    form.elements.title.value = r.title || '';
+    form.elements.slug.value = r.slug || '';
+    form.elements.imgUrl.value = r.imgUrl || '';
+    form.elements.opensea.value = r.opensea || '';
+    form.elements.captionHtml.value = r.captionHtml || '';
+    form.elements.ticketCost.value = r.ticketCost || '';
+    form.elements.maxTicketsPerWallet.value = r.maxTicketsPerWallet || '';
+    form.elements.description.value = r.description || '';
+    form.elements.labelTag.value = r.labelTag || '';
+    // datetime-local format
+    if (r.startsAt) {
+      const d = new Date(r.startsAt);
+      d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+      form.elements.startsAt.value = d.toISOString().slice(0, 16);
+    }
+    if (r.endsAt) {
+      const d = new Date(r.endsAt);
+      d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+      form.elements.endsAt.value = d.toISOString().slice(0, 16);
+    }
+    const preview = document.getElementById('img-preview');
+    preview.src = r.imgUrl || '';
+    preview.style.display = r.imgUrl ? 'block' : 'none';
+    modal.hidden = false;
+  };
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(form);
+    const body = Object.fromEntries(fd.entries());
+    // Convert datetimes to timestamps
+    body.startsAt = body.startsAt ? new Date(body.startsAt).getTime() : null;
+    body.endsAt = body.endsAt ? new Date(body.endsAt).getTime() : null;
+    body.ticketCost = Number(body.ticketCost) || 100;
+    if (body.maxTicketsPerWallet) body.maxTicketsPerWallet = Number(body.maxTicketsPerWallet);
+    else delete body.maxTicketsPerWallet;
+    const isEdit = !!body.id;
+    const url = isEdit ? `/api/raffles/${body.id}` : '/api/raffles';
+    const method = isEdit ? 'PUT' : 'POST';
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      toast(isEdit ? '✅ Raffle updated!' : '✅ Raffle created!');
+      modal.hidden = true;
+      loadRaffles();
+    } else {
+      toast('❌ ' + (data.error || 'Error'), true);
+    }
+  });
+
+  window.toggleRaffle = async (id, open) => {
+    const res = await fetch(`/api/raffles/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ open }),
+    });
+    const data = await res.json();
+    toast(data.ok ? `✅ Raffle ${open ? 'opened' : 'closed'}!` : '❌ Error', !data.ok);
+    loadRaffles();
+  };
+
+  window.deleteRaffle = async (id) => {
+    if (!confirm('Delete this raffle? This cannot be undone.')) return;
+    const res = await fetch(`/api/raffles/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    toast(data.ok ? '✅ Deleted' : '❌ Error', !data.ok);
+    loadRaffles();
+  };
+
+  loadRaffles();
+</script>
+</body>
+</html>

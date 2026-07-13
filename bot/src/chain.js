@@ -9,6 +9,18 @@ const ERC721_ABI = [
   'event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)',
 ];
 
+// Known collections
+const COLLECTIONS = {
+  moze: {
+    ca: '0x0e579bcec21ae9dc5400db46cab67d5a8d0a58cc',
+    name: 'Moze Street Art',
+  },
+  gremlins: {
+    ca: '0x12449b9a29865621be166aaff04dc14a640b4119',
+    name: 'Gremlin Cartel',
+  },
+};
+
 function getProvider() {
   const rpc = getSetting('rh_rpc') || 'https://rpc.mainnet.chain.robinhood.com';
   return new ethers.JsonRpcProvider(rpc);
@@ -22,16 +34,28 @@ function getContract(providerOrSigner) {
 /**
  * Get NFT balance for a wallet address
  */
-async function getNftBalance(walletAddress) {
+async function getNftBalance(walletAddress, ca) {
   try {
     const provider = getProvider();
-    const contract = getContract(provider);
+    const contractCa = ca || getSetting('moze_ca') || COLLECTIONS.moze.ca;
+    const contract = new ethers.Contract(contractCa, ERC721_ABI, provider);
     const balance = await contract.balanceOf(walletAddress);
     return Number(balance);
   } catch (err) {
     console.error('[chain] balanceOf error:', err.message);
     return 0;
   }
+}
+
+/**
+ * Get balances for all known collections
+ */
+async function getAllBalances(walletAddress) {
+  const [moze, gremlins] = await Promise.all([
+    getNftBalance(walletAddress, COLLECTIONS.moze.ca),
+    getNftBalance(walletAddress, COLLECTIONS.gremlins.ca),
+  ]);
+  return { moze, gremlins };
 }
 
 /**
@@ -86,4 +110,4 @@ function startSalesListener(onSale) {
   });
 }
 
-module.exports = { getNftBalance, getRoleForCount, startSalesListener };
+module.exports = { getNftBalance, getAllBalances, getRoleForCount, startSalesListener };

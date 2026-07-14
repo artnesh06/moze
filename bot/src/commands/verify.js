@@ -176,7 +176,7 @@ async function handleCheckWalletModal(interaction) {
     new ActionRowBuilder().addComponents(
       new TextInputBuilder()
         .setCustomId('wallet_input')
-        .setLabel('Wallet address (0x...)')
+        .setLabel('Wallet address')
         .setStyle(TextInputStyle.Short)
         .setPlaceholder('0x...')
         .setMinLength(10).setMaxLength(100).setRequired(true)
@@ -184,9 +184,9 @@ async function handleCheckWalletModal(interaction) {
     new ActionRowBuilder().addComponents(
       new TextInputBuilder()
         .setCustomId('sig_input')
-        .setLabel('Signature (0x...) — empty if using OpenSea bio')
+        .setLabel('Signature (optional)')
         .setStyle(TextInputStyle.Paragraph)
-        .setPlaceholder('0x... from personal_sign')
+        .setPlaceholder('0x... from personal_sign — leave empty for OpenSea bio')
         .setRequired(false)
         .setMaxLength(200)
     ),

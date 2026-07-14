@@ -179,16 +179,33 @@ async function handleCheckModalSubmit(interaction) {
   await interaction.editReply({ content: `🔍 Checking OpenSea bio for \`${wallet}\`...` });
 
   let bioHasCode = false;
-  try { bioHasCode = await checkOpenSeaBio(wallet, pending.code); }
-  catch (err) { console.error('[verify] OpenSea check error:', err.message); }
+  let openseaError = null;
+  try {
+    bioHasCode = await checkOpenSeaBio(wallet, pending.code);
+  } catch (err) {
+    openseaError = err.message;
+    console.error('[verify] OpenSea check error:', err.message);
+  }
 
   if (!bioHasCode) {
+    if (openseaError) {
+      return interaction.editReply({
+        content: [
+          `⚠️ Could not read OpenSea profile: ${openseaError}`,
+          `Looking for code: \`${pending.code}\``,
+          'Wait 10s after saving bio, then click **Check Wallet** again.',
+        ].join('\n'),
+      });
+    }
     return interaction.editReply({
       content: [
         `❌ Code \`${pending.code}\` not found in bio of \`${wallet}\`.`,
-        '1. Paste it in your [OpenSea bio](https://opensea.io/account/settings)',
-        '2. Click Save → wait a few seconds',
-        '3. Click **Check Wallet** again',
+        '',
+        '**Important:** use the **same code** Discord just gave you (not an old one).',
+        '1. Copy the code above exactly',
+        '2. Paste in [OpenSea bio](https://opensea.io/settings/profile) → **Save**',
+        '3. Wait ~10 seconds',
+        '4. Click **Check Wallet** again',
       ].join('\n'),
     });
   }
@@ -313,17 +330,97 @@ async function handleModalSubmit(interaction) {
 
 // ── OpenSea bio check ─────────────────────────────────────────────────────────
 
-async function checkOpenSeaBio(wallet, code) {
-  try {
-    const res = await axios.get(`https://api.opensea.io/api/v2/accounts/${wallet}`, {
-      headers: { 'X-API-KEY': process.env.OPENSEA_API_KEY || '' }, timeout: 8000,
-    });
-    return (res.data?.bio || '').includes(code);
-  } catch {
+function bioContainsCode(bio, code) {
+  if (!bio || !code) return false;
+  return String(bio).toUpperCase().includes(String(code).toUpperCase());
+}
+
+/** Official API (needs OPENSEA_API_KEY). */
+async function fetchBioViaApi(wallet) {
+  const headers = { Accept: 'application/json' };
+  if (process.env.OPENSEA_API_KEY) headers['X-API-KEY'] = process.env.OPENSEA_API_KEY;
+  const res = await axios.get(`https://api.opensea.io/api/v2/accounts/${wallet}`, {
+    headers,
+    timeout: 10000,
+    validateStatus: () => true,
+  });
+  if (res.status === 200 && res.data) {
+    return res.data.bio || res.data.account?.bio || '';
+  }
+  // missing key / rate limit
+  const err = new Error(res.data?.errors?.[0] || `OpenSea API ${res.status}`);
+  err.status = res.status;
+  throw err;
+}
+
+/**
+ * Fallback: scrape public profile HTML for "bio":"..." or the code itself.
+ * OpenSea v2 accounts API now requires a key; HTML still embeds profile JSON.
+ */
+async function fetchBioViaPage(wallet) {
+  const urls = [
+    `https://opensea.io/${wallet}`,
+    `https://opensea.io/${wallet.toLowerCase()}`,
+  ];
+  let lastErr;
+  for (const url of urls) {
     try {
-      const res = await axios.get(`https://api.opensea.io/api/v2/accounts/${wallet}`, { timeout: 8000 });
-      return (res.data?.bio || '').includes(code);
-    } catch { throw new Error('OpenSea API unavailable'); }
+      const res = await axios.get(url, {
+        timeout: 12000,
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          Accept: 'text/html,application/xhtml+xml',
+        },
+        validateStatus: () => true,
+        maxRedirects: 5,
+      });
+      if (res.status !== 200 || typeof res.data !== 'string') {
+        lastErr = new Error(`profile page ${res.status}`);
+        continue;
+      }
+      const html = res.data;
+      // Prefer explicit bio JSON field
+      const bioMatch =
+        html.match(/"bio"\s*:\s*"((?:\\.|[^"\\])*)"/) ||
+        html.match(/\\"bio\\"\s*:\s*\\"((?:\\.|[^"\\])*)\\"/);
+      if (bioMatch) {
+        try {
+          return JSON.parse(`"${bioMatch[1]}"`);
+        } catch {
+          return bioMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
+        }
+      }
+      // Last resort: page body contains the code string
+      return html;
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr || new Error('OpenSea profile unavailable');
+}
+
+/**
+ * Returns true if code is in OpenSea bio.
+ * Throws only when we cannot read profile at all (so UI can show API error).
+ */
+async function checkOpenSeaBio(wallet, code) {
+  // 1) API (best if key configured)
+  try {
+    const bio = await fetchBioViaApi(wallet);
+    if (bioContainsCode(bio, code)) return true;
+    // API worked but code missing — still try page (cache lag)
+  } catch (err) {
+    console.warn('[verify] OpenSea API:', err.message);
+  }
+
+  // 2) Public profile scrape
+  try {
+    const bioOrHtml = await fetchBioViaPage(wallet);
+    return bioContainsCode(bioOrHtml, code);
+  } catch (err) {
+    console.error('[verify] OpenSea page scrape failed:', err.message);
+    throw new Error('OpenSea profile unavailable — try again in a few seconds');
   }
 }
 

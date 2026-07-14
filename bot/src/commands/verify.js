@@ -523,24 +523,26 @@ async function sleep(ms) {
  */
 async function checkOpenSeaBio(wallet, code) {
   const attempts = 3;
-  let lastReadError = null;
-  let sawEmptyBio = false;
+  let pageOk = false; // got some HTML/API response we could inspect
+  let lastHardError = null;
 
   for (let i = 1; i <= attempts; i++) {
     // 1) Official API
     try {
       const bio = await fetchBioViaApi(wallet);
+      pageOk = true;
       console.log(`[verify] API attempt ${i}: bioLen=${(bio || '').length}`);
       if (bioContainsCode(bio, code)) return true;
-      if (bio != null) sawEmptyBio = true;
     } catch (err) {
-      lastReadError = err;
+      // 401 without key is expected — not a hard failure if page works
       console.warn(`[verify] OpenSea API attempt ${i}:`, err.message);
+      if (err.status && err.status !== 401) lastHardError = err;
     }
 
     // 2) Public page
     try {
       const page = await fetchBioViaPage(wallet);
+      pageOk = true;
       const bios = extractBiosFromHtml(typeof page === 'string' ? page : '');
       console.log(
         `[verify] page attempt ${i}: pageLen=${String(page || '').length} bios=${bios.length}`
@@ -549,19 +551,19 @@ async function checkOpenSeaBio(wallet, code) {
       for (const b of bios) {
         if (bioContainsCode(b, code)) return true;
       }
-      if (bios.some((b) => b.trim())) sawEmptyBio = true;
     } catch (err) {
-      lastReadError = err;
+      lastHardError = err;
       console.error(`[verify] OpenSea page attempt ${i}:`, err.message);
     }
 
     if (i < attempts) await sleep(1500 * i);
   }
 
-  // Profile readable but code absent
-  if (sawEmptyBio || lastReadError == null) return false;
+  // We could read something but code wasn't there
+  if (pageOk) return false;
+
   throw new Error(
-    lastReadError.message || 'OpenSea profile unavailable — try again in a few seconds'
+    lastHardError?.message || 'OpenSea profile unavailable — try again in a few seconds'
   );
 }
 

@@ -810,11 +810,13 @@ function initTraits() {
   syncLeaderboardVisibility();
 }
 
-const LB_CACHE_KEY = 'moze-stakers-lb-v3';
+const LB_CACHE_KEY = 'moze-stakers-lb-v4';
 const LB_CACHE_TTL = 5 * 60 * 1000; // 5 min
-const LB_TOP_N = 25;
-const LB_INITIAL_SHOW = 10;
-const LB_LOAD_MORE = 10;
+/** How many rows to request for `top` fallback (API also returns full `rows`). */
+const LB_TOP_N = 100;
+/** First paint: max 20 rows. See More adds LB_LOAD_MORE each click. */
+const LB_INITIAL_SHOW = 20;
+const LB_LOAD_MORE = 20;
 let lbCurrentShown = LB_INITIAL_SHOW;
 
 function softStakePointsFor(addr) {
@@ -897,20 +899,21 @@ function renderLeaderboardTable(data, keepShown = false) {
   const meta = document.getElementById('lb-meta');
   if (!tbody) return;
 
-  // Reset to initial 10 on fresh load, keep count on "See More" click
+  // Reset to initial 20 on fresh load, keep count on "See More" click
   if (!keepShown) lbCurrentShown = LB_INITIAL_SHOW;
 
   const you = (stakeAccount || '').toLowerCase();
-  // Extra guard: never show non-stakers
+  // Full ranked list (all stakers) — no hard top-25 cut
   const stakers = (data.rows || []).filter((r) => (Number(r.softMoze) || 0) > 0 || (Number(r.staked) || 0) > 0);
-  const top = stakers.slice(0, LB_TOP_N);
-  if (!top.length) {
+  if (!stakers.length) {
     tbody.innerHTML = '<tr><td colspan="4" class="lb-empty">No stakers yet — be the first.</td></tr>';
+    if (meta) meta.textContent = '0 stakers';
     return;
   }
 
-  // Show only up to lbCurrentShown
-  const displayed = top.slice(0, lbCurrentShown);
+  const total = stakers.length;
+  const shown = Math.min(lbCurrentShown, total);
+  const displayed = stakers.slice(0, shown);
   tbody.innerHTML = displayed.map((row, i) => {
     const isYou = you && row.addr === you;
     const soft = row.softMoze > 0 ? formatMoze(row.softMoze) : '0';
@@ -925,9 +928,10 @@ function renderLeaderboardTable(data, keepShown = false) {
   }).join('');
 
   // If you're a staker but outside currently shown range, append your row
+  // (not duplicated once See More reaches your rank)
   if (you) {
     const yourIdx = stakers.findIndex((r) => r.addr === you);
-    if (yourIdx >= lbCurrentShown) {
+    if (yourIdx >= shown) {
       const row = stakers[yourIdx];
       const soft = row.softMoze > 0 ? formatMoze(row.softMoze) : '0';
       tbody.innerHTML += (
@@ -941,24 +945,24 @@ function renderLeaderboardTable(data, keepShown = false) {
     }
   }
 
-  // "See More" button if there are more stakers to reveal
-  if (lbCurrentShown < top.length) {
-    const remaining = top.length - lbCurrentShown;
+  // See More: reveal next batch until full list
+  if (shown < total) {
+    const remaining = total - shown;
     const seeMoreRow = document.createElement('tr');
     seeMoreRow.className = 'lb-see-more-row';
     seeMoreRow.innerHTML = `<td colspan="4" style="text-align:center;padding:10px 0 6px;">` +
-      `<button class="lb-see-more-btn">See More (${remaining} left)</button></td>`;
+      `<button type="button" class="lb-see-more-btn">See More (${remaining} left)</button></td>`;
     tbody.appendChild(seeMoreRow);
     const btn = seeMoreRow.querySelector('.lb-see-more-btn');
     btn.addEventListener('click', () => {
-      lbCurrentShown += LB_LOAD_MORE;
+      lbCurrentShown = Math.min(lbCurrentShown + LB_LOAD_MORE, total);
       renderLeaderboardTable(data, true);
     });
   }
 
   if (meta) {
-    const when = new Date(data.scannedAt).toLocaleTimeString();
-    meta.textContent = `Showing ${Math.min(lbCurrentShown, top.length)} of ${stakers.length} stakers · ${when}`;
+    const when = new Date(data.scannedAt || Date.now()).toLocaleTimeString();
+    meta.textContent = `Showing ${shown} of ${total} stakers · ${when}`;
   }
 }
 

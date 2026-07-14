@@ -327,22 +327,19 @@ async function handleSetupVerify(interaction) {
   await interaction.deferReply({ ephemeral: true });
 
   const embed = new EmbedBuilder()
-    .setTitle('Moze Gang')
+    .setTitle('Moze Gang Verification')
     .setDescription([
-      'Masuk dulu, baru ngobrol.',
-      '',
-      '**Masuk server** — buktikan lo manusia (bukan bot spam).',
-      '**Holder** — pegang Moze / Gremlin? claim role bag lo.',
-      '',
-      'Klik salah satu tombol di bawah.',
+      'Welcome to Moze Gang!',
+      '• **Get in** — prove you’re human (no bot spam).',
+      '• **Holder** — proof of your hold and claim your role.',
     ].join('\n'))
     .setColor(0xC6E607)
     .setThumbnail('https://www.mozestreet.art/assets/Collection/1.webp')
     .setFooter({ text: 'mozestreet.art' });
 
   const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('btn_captcha').setLabel('Masuk server').setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setCustomId('btn_get_code').setLabel('Claim holder role').setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId('btn_captcha').setLabel('Verify Access').setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId('btn_get_code').setLabel('Holder Verify').setStyle(ButtonStyle.Success),
   );
 
   await interaction.channel.send({ embeds: [embed], components: [row] });

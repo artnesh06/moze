@@ -3,6 +3,9 @@ const session = require('express-session');
 const path = require('path');
 const { db, getSetting, setSetting, getAllSettings, getRoles, setRoles, getAllHolders } = require('../db');
 
+// Node 18+ has global fetch; keep explicit for older runtimes if needed
+const fetch = globalThis.fetch;
+
 const app = express();
 const PORT = parseInt(process.env.ADMIN_PORT || '4000');
 const PASSWORD = process.env.ADMIN_PASSWORD || 'changeme';
@@ -80,98 +83,160 @@ app.get('/api/holders', requireAuth, (req, res) => {
 });
 
 // ── API: Stats ────────────────────────────────────────────────────────────────
-app.get('/api/stats', requireAuth, (req, res) => {
+app.get('/api/stats', requireAuth, async (req, res) => {
   const holders = db.prepare('SELECT COUNT(*) as c FROM verified_holders').get();
   const codes = db.prepare('SELECT COUNT(*) as c FROM verify_codes WHERE used = 0').get();
-  const raffles = db.prepare('SELECT COUNT(*) as c FROM raffles').get();
+  let totalRaffles = 0;
+  try {
+    const data = await mozeAdmin('/v1/admin/raffles');
+    totalRaffles = (data.raffles || []).length;
+  } catch {
+    /* moze-api optional for stats */
+  }
   res.json({
     verified_holders: holders.c,
     pending_codes: codes.c,
-    total_raffles: raffles.c,
+    total_raffles: totalRaffles,
   });
 });
 
-// ── Raffle DB init ────────────────────────────────────────────────────────────
-db.exec(`
-  CREATE TABLE IF NOT EXISTS raffles (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    slug TEXT NOT NULL UNIQUE,
-    title TEXT NOT NULL,
-    prizeLabel TEXT NOT NULL,
-    imgUrl TEXT,
-    opensea TEXT,
-    captionHtml TEXT,
-    description TEXT,
-    labelTag TEXT,
-    ticketCost REAL NOT NULL DEFAULT 100,
-    maxTicketsPerWallet INTEGER,
-    startsAt INTEGER,
-    endsAt INTEGER,
-    open INTEGER DEFAULT 0,
-    created_at INTEGER NOT NULL DEFAULT (strftime('%s','now') * 1000)
-  );
-`);
+// ── Raffles → proxy to moze-api (live site source of truth) ───────────────────
+// Local SQLite raffles table is no longer used for site raffles.
+const MOZE_API = (process.env.MOZE_API_URL || 'https://api.mozestreet.art').replace(/\/$/, '');
+const MOZE_ADMIN_SECRET = process.env.MOZE_ADMIN_SECRET || process.env.ADMIN_SECRET || '';
 
-// ── API: Raffles (admin) ──────────────────────────────────────────────────────
-app.get('/api/raffles', requireAuth, (req, res) => {
-  const rows = db.prepare('SELECT * FROM raffles ORDER BY id DESC').all();
-  res.json(rows.map(r => ({ ...r, open: !!r.open })));
+function mapApiRaffle(r) {
+  if (!r) return null;
+  return {
+    id: r.id,
+    slug: r.slug,
+    title: r.title,
+    prizeLabel: r.prizeLabel || r.prize_label,
+    description: r.description || '',
+    ticketCost: r.ticketCost ?? r.ticket_cost,
+    maxTicketsPerWallet: r.maxTicketsPerWallet ?? r.max_tickets_per_wallet,
+    startsAt: r.startsAt ?? r.starts_at,
+    endsAt: r.endsAt ?? r.ends_at,
+    status: r.status,
+    open: !!(r.open ?? (r.status === 'open')),
+    totalTickets: r.totalTickets || 0,
+    entrants: r.entrants || 0,
+    // optional UI fields (not stored in moze-api yet)
+    imgUrl: r.imgUrl || null,
+    opensea: r.opensea || null,
+    captionHtml: r.captionHtml || null,
+    labelTag: r.labelTag || null,
+  };
+}
+
+async function mozeAdmin(path, { method = 'GET', body } = {}) {
+  if (!MOZE_ADMIN_SECRET) {
+    const err = new Error('MOZE_ADMIN_SECRET / ADMIN_SECRET not set — cannot manage live raffles');
+    err.status = 503;
+    throw err;
+  }
+  const res = await fetch(`${MOZE_API}${path}`, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'x-admin-secret': MOZE_ADMIN_SECRET,
+    },
+    body: body != null ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data.error || `moze-api ${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
+  return data;
+}
+
+// ── API: Raffles (admin) — wired to moze-api ──────────────────────────────────
+app.get('/api/raffles', requireAuth, async (req, res) => {
+  try {
+    const data = await mozeAdmin('/v1/admin/raffles');
+    res.json((data.raffles || []).map(mapApiRaffle));
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
 });
 
-app.post('/api/raffles', requireAuth, (req, res) => {
-  const { slug, title, prizeLabel, imgUrl, opensea, captionHtml,
-    description, labelTag, ticketCost, maxTicketsPerWallet, startsAt, endsAt } = req.body;
-  if (!slug || !title || !prizeLabel) {
+app.post('/api/raffles', requireAuth, async (req, res) => {
+  const b = req.body || {};
+  if (!b.slug || !b.title || !b.prizeLabel) {
     return res.status(400).json({ error: 'slug, title, prizeLabel required' });
   }
   try {
-    const result = db.prepare(`
-      INSERT INTO raffles (slug, title, prizeLabel, imgUrl, opensea, captionHtml,
-        description, labelTag, ticketCost, maxTicketsPerWallet, startsAt, endsAt, open)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
-    `).run(slug, title, prizeLabel,
-      imgUrl || null, opensea || null, captionHtml || null,
-      description || null, labelTag || null,
-      Number(ticketCost) || 100, maxTicketsPerWallet ? Number(maxTicketsPerWallet) : null,
-      startsAt || null, endsAt || null);
-    res.json({ ok: true, id: result.lastInsertRowid });
+    const data = await mozeAdmin('/v1/admin/raffles', {
+      method: 'POST',
+      body: {
+        slug: b.slug,
+        title: b.title,
+        prizeLabel: b.prizeLabel,
+        description: b.description || '',
+        ticketCost: Number(b.ticketCost) || 1,
+        maxTicketsPerWallet: b.maxTicketsPerWallet ? Number(b.maxTicketsPerWallet) : null,
+        startsAt: b.startsAt || null,
+        endsAt: b.endsAt || null,
+        status: b.open ? 'open' : (b.status || 'open'),
+      },
+    });
+    res.json({ ok: true, id: data.raffle?.id, raffle: mapApiRaffle(data.raffle) });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    res.status(err.status || 400).json({ error: err.message });
   }
 });
 
-app.put('/api/raffles/:id', requireAuth, (req, res) => {
-  const id = parseInt(req.params.id);
-  const existing = db.prepare('SELECT * FROM raffles WHERE id = ?').get(id);
-  if (!existing) return res.status(404).json({ error: 'Not found' });
-  const u = { ...existing, ...req.body };
+app.put('/api/raffles/:id', requireAuth, async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const b = req.body || {};
   try {
-    db.prepare(`
-      UPDATE raffles SET slug=?, title=?, prizeLabel=?, imgUrl=?, opensea=?,
-        captionHtml=?, description=?, labelTag=?, ticketCost=?,
-        maxTicketsPerWallet=?, startsAt=?, endsAt=?, open=?
-      WHERE id=?
-    `).run(u.slug, u.title, u.prizeLabel, u.imgUrl || null, u.opensea || null,
-      u.captionHtml || null, u.description || null, u.labelTag || null,
-      Number(u.ticketCost) || 100, u.maxTicketsPerWallet ? Number(u.maxTicketsPerWallet) : null,
-      u.startsAt || null, u.endsAt || null, u.open ? 1 : 0, id);
+    const data = await mozeAdmin(`/v1/admin/raffles/${id}`, {
+      method: 'PUT',
+      body: {
+        slug: b.slug,
+        title: b.title,
+        prizeLabel: b.prizeLabel,
+        description: b.description,
+        ticketCost: b.ticketCost != null ? Number(b.ticketCost) : undefined,
+        maxTicketsPerWallet:
+          b.maxTicketsPerWallet === '' || b.maxTicketsPerWallet == null
+            ? null
+            : Number(b.maxTicketsPerWallet),
+        startsAt: b.startsAt,
+        endsAt: b.endsAt,
+        open: b.open,
+        status: b.status,
+      },
+    });
+    res.json({ ok: true, raffle: mapApiRaffle(data.raffle) });
+  } catch (err) {
+    res.status(err.status || 400).json({ error: err.message });
+  }
+});
+
+app.delete('/api/raffles/:id', requireAuth, async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const force = req.query.force === '1' ? '?force=1' : '';
+  try {
+    await mozeAdmin(`/v1/admin/raffles/${id}${force}`, { method: 'DELETE' });
     res.json({ ok: true });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    res.status(err.status || 400).json({ error: err.message });
   }
 });
 
-app.delete('/api/raffles/:id', requireAuth, (req, res) => {
-  const id = parseInt(req.params.id);
-  db.prepare('DELETE FROM raffles WHERE id = ?').run(id);
-  res.json({ ok: true });
-});
-
-// ── Public raffle API (for moze site frontend, no auth) ───────────────────────
-app.get('/public/raffles', (req, res) => {
+// ── Public raffle API — proxy moze-api public list (no auth) ──────────────────
+app.get('/public/raffles', async (req, res) => {
   res.header('Access-Control-Allow-Origin', '*');
-  const rows = db.prepare('SELECT * FROM raffles ORDER BY id ASC').all();
-  res.json(rows.map(r => ({ ...r, open: !!r.open })));
+  try {
+    const r = await fetch(`${MOZE_API}/v1/raffle`, { timeout: 10000 });
+    const data = await r.json();
+    res.json((data.raffles || []).map(mapApiRaffle));
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
 });
 
 app.listen(PORT, () => {

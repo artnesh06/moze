@@ -59,15 +59,19 @@ const insertDefault = db.prepare(
 );
 for (const [k, v] of defaults) insertDefault.run(k, v);
 
-// Default roles if empty
+// Default roles if empty — names MUST match Discord role names exactly
+// Live Moze Gang: Moze (+1), Mozeeker (+3), Mozarrior (+5), Mozemperor (+10), Mozeus (+15), Mozelord (+20)
 const roleCount = db.prepare('SELECT COUNT(*) as c FROM roles_config').get();
 if (roleCount.c === 0) {
   const insertRole = db.prepare(
     'INSERT INTO roles_config (role_name, min_hold, max_hold) VALUES (?, ?, ?)'
   );
-  insertRole.run('Moze +1', 1, 4);
-  insertRole.run('Fat Moze +5', 5, 9);
-  insertRole.run('Mozeus +10', 10, 999);
+  insertRole.run('Moze (+1)', 1, 2);
+  insertRole.run('Mozeeker (+3)', 3, 4);
+  insertRole.run('Mozarrior (+5)', 5, 9);
+  insertRole.run('Mozemperor (+10)', 10, 14);
+  insertRole.run('Mozeus (+15)', 15, 19);
+  insertRole.run('Mozelord (+20)', 20, 9999);
 }
 
 module.exports = {

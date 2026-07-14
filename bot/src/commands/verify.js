@@ -160,7 +160,9 @@ async function handleVerify(interaction) {
       '1. Copy the **exact** 3-line message below',
       '2. Replace `0xYOUR_WALLET` with your address (**lowercase**)',
       '3. Sign it in MetaMask / Rabby / [MyCrypto](https://app.mycrypto.com/sign-message)',
-      '4. Hit **Check wallet** → paste address + signature',
+      '4. Hit **Check wallet**',
+      '   • Field 1 = your **wallet address** (~42 chars)',
+      '   • Field 2 = the **signature** from step 3 (~130+ chars) — **not** your address again',
       '',
       'Code lasts **10 minutes**. Moze & Gremlin Cartel supported.',
     ].join('\n'))
@@ -202,14 +204,19 @@ async function handleCheckWalletModal(interaction) {
     new ActionRowBuilder().addComponents(
       new TextInputBuilder()
         .setCustomId('sig_input')
-        .setLabel('Signature (0x…)')
+        .setLabel('Signature from wallet (NOT address)')
         .setStyle(TextInputStyle.Paragraph)
-        .setPlaceholder('Paste the 0x… signature from personal_sign')
+        .setPlaceholder('Long 0x… from Sign Message (~130 chars). NOT your wallet address.')
         .setRequired(true)
-        .setMaxLength(200)
+        .setMaxLength(400)
     ),
   );
   await interaction.showModal(modal);
+}
+
+/** True if user pasted a 20-byte address into the signature field by mistake */
+function looksLikeWalletAddress(hex) {
+  return /^0x[0-9a-fA-F]{40}$/.test((hex || '').trim());
 }
 
 async function handleCheckModalSubmit(interaction) {
@@ -231,11 +238,33 @@ async function handleCheckModalSubmit(interaction) {
       content: 'Signature required. Sign the 3-line message, then paste the `0x…` signature here.',
     });
   }
-
   const pending = getCode(interaction.user.id);
   if (!pending) return interaction.editReply({ content: 'No active code. Hit **Holder Verify** again.' });
   if (Date.now() - pending.created_at > 10 * 60 * 1000) {
     return interaction.editReply({ content: 'Code expired. Hit **Holder Verify** again.' });
+  }
+
+  // Common mistake: paste wallet address into Signature field
+  if (looksLikeWalletAddress(signature)) {
+    return interaction.editReply({
+      content: [
+        '**Stuck at step 1 — you pasted a wallet address, not a signature**',
+        '',
+        'Field **Signature** needs the long string from **Sign Message** in your wallet (~130+ characters).',
+        'What you pasted looks like an **address** (~42 characters) — same as Field 1.',
+        '',
+        '**Do this:**',
+        '1. Open MetaMask / Rabby → Sign Message (or [MyCrypto](https://app.mycrypto.com/sign-message))',
+        '2. Paste the 3-line message, sign with this wallet',
+        '3. Copy the **signature** result (long `0x…`)',
+        '4. **Check wallet** again: address in field 1, signature in field 2',
+        '',
+        'Sign **exactly** this (address lowercase):',
+        '```',
+        buildSignMessage(pending.code, wallet),
+        '```',
+      ].join('\n'),
+    });
   }
 
   const TOTAL = 3;
@@ -257,6 +286,8 @@ async function handleCheckModalSubmit(interaction) {
       content: [
         '**Stuck at step 1 — bad signature**',
         err.message,
+        '',
+        'Tip: signature is a **long** `0x…` from Sign Message — not your wallet address.',
         '',
         'Sign **exactly** this (address lowercase):',
         '```',
@@ -309,27 +340,71 @@ async function handleCheckModalSubmit(interaction) {
     const toRemove = interaction.member.roles.cache.filter(r => holderRoleNames.includes(r.name));
     for (const [, r] of toRemove) await interaction.member.roles.remove(r).catch(() => {});
     const role = interaction.guild.roles.cache.find(r => r.name === mozeRoleName);
-    if (role) { await interaction.member.roles.add(role).catch(() => {}); assigned.push(`**${mozeRoleName}** (${mozeBalance} Moze)`); }
+    if (role) {
+      try {
+        await interaction.member.roles.add(role);
+        assigned.push(`**${mozeRoleName}** (${mozeBalance} Moze)`);
+      } catch (err) {
+        assigned.push(`⚠️ role **${mozeRoleName}** found but add failed: ${err.message}`);
+      }
+    } else {
+      assigned.push(
+        `⚠️ config wants **${mozeRoleName}** but that Discord role is missing (rename role or fix Roles in admin dashboard)`
+      );
+    }
+  } else if (mozeBalance > 0 && !mozeRoleName) {
+    assigned.push(
+      `⚠️ Moze **${mozeBalance}** on-chain but no roles_config tier matches (check admin → Roles)`
+    );
   }
 
   if (gremlinsBalance > 0) {
     const gremlinsRole = interaction.guild.roles.cache.find(r => r.name === 'Gremlins');
-    if (gremlinsRole) { await interaction.member.roles.add(gremlinsRole).catch(() => {}); assigned.push(`**Gremlins** (${gremlinsBalance} NFTs)`); }
+    if (gremlinsRole) {
+      try {
+        await interaction.member.roles.add(gremlinsRole);
+        assigned.push(`**Gremlins** (${gremlinsBalance} NFTs)`);
+      } catch (err) {
+        assigned.push(`⚠️ **Gremlins** add failed: ${err.message}`);
+      }
+    } else {
+      assigned.push('⚠️ Gremlins balance > 0 but Discord role **Gremlins** missing');
+    }
   }
 
-  if (!assigned.length) {
+  const realRoles = assigned.filter((a) => a.startsWith('**'));
+  const warnings = assigned.filter((a) => a.startsWith('⚠️'));
+
+  if (!realRoles.length) {
+    const zeroNft = mozeBalance === 0 && gremlinsBalance === 0;
     return interaction.editReply({
       content: [
-        '**Done — wallet linked, no holder role**',
+        zeroNft
+          ? '**Done — wallet linked, no holder role**'
+          : '**Done — wallet linked, holder role not applied**',
         `Wallet: \`${wallet}\``,
         `Signature OK. On-chain: Moze **${mozeBalance}** · Gremlins **${gremlinsBalance}**`,
         '',
-        'No supported NFTs on this address.',
-        '• [Moze](https://opensea.io/collection/mozestreetart)',
-        '• [Gremlin Cartel](https://opensea.io/collection/gremlin-cartel)',
-      ].join('\n'),
+        zeroNft
+          ? 'No Moze / Gremlin NFTs on this address.'
+          : 'NFTs detected but role was not assigned:',
+        ...warnings.map((w) => `• ${w.replace(/^⚠️ /, '')}`),
+        zeroNft
+          ? [
+              '• [Moze](https://opensea.io/collection/mozestreetart)',
+              '• [Gremlin Cartel](https://opensea.io/collection/gremlin-cartel)',
+            ].join('\n')
+          : 'Fix role names in **admin dashboard → Roles** so they match Discord exactly (e.g. `Moze (+1)`).',
+      ].filter(Boolean).join('\n'),
     });
   }
+
+  // Prefer clean success when at least one real role applied; still show warnings if any
+  if (warnings.length) {
+    // fall through with realRoles only in success message; warnings appended below
+  }
+  // rewrite assigned for success line
+  const successAssigned = realRoles;
 
   await interaction.editReply({
     content: [
@@ -337,7 +412,8 @@ async function handleCheckModalSubmit(interaction) {
       `\`● ● ●\`  step ${TOTAL}/${TOTAL}`,
       '',
       `Wallet: \`${wallet}\``,
-      `Roles: ${assigned.join(', ')}`,
+      `Roles: ${successAssigned.join(', ')}`,
+      ...(warnings.length ? ['', ...warnings] : []),
     ].join('\n'),
   });
 }

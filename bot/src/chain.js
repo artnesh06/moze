@@ -72,42 +72,66 @@ function getRoleForCount(count, roles) {
 }
 
 /**
- * Start listening for Transfer events (sales tracker)
+ * Start polling Transfer events (sales tracker).
+ * Uses getLogs polling instead of eth_subscribe/filter — public RPC rate-limits
+ * filter APIs hard (429) and uncaught errors were killing the whole bot process.
  */
 function startSalesListener(onSale) {
-  const provider = getProvider();
-  const contract = getContract(provider);
-
   const ZERO = '0x0000000000000000000000000000000000000000';
+  const POLL_MS = Number(process.env.SALES_POLL_MS || 45000);
+  let lastBlock = null;
+  let busy = false;
 
-  contract.on('Transfer', async (from, to, tokenId) => {
-    // Ignore mints (from zero address)
-    if (from.toLowerCase() === ZERO) return;
-
+  async function tick() {
+    if (busy) return;
+    busy = true;
     try {
-      await onSale({
-        from,
-        to,
-        tokenId: tokenId.toString(),
-      });
+      const provider = getProvider();
+      const contract = getContract(provider);
+      const tip = await provider.getBlockNumber();
+      if (lastBlock == null) {
+        // First run: only watch forward (skip historical flood)
+        lastBlock = Math.max(0, tip - 2);
+        return;
+      }
+      const fromBlock = lastBlock + 1;
+      if (fromBlock > tip) return;
+      // Cap range so RPC stays happy
+      const toBlock = Math.min(tip, fromBlock + 200);
+      const filter = {
+        address: contract.target || contract.address,
+        fromBlock,
+        toBlock,
+        topics: [ethers.id('Transfer(address,address,uint256)')],
+      };
+      const logs = await provider.getLogs(filter);
+      for (const log of logs) {
+        try {
+          const parsed = contract.interface.parseLog(log);
+          if (!parsed || parsed.name !== 'Transfer') continue;
+          const from = String(parsed.args.from || '');
+          const to = String(parsed.args.to || '');
+          const tokenId = parsed.args.tokenId?.toString?.() || String(parsed.args[2] || '');
+          if (from.toLowerCase() === ZERO) continue;
+          await onSale({ from, to, tokenId });
+        } catch (err) {
+          console.error('[chain] parse/onSale error:', err.message);
+        }
+      }
+      lastBlock = toBlock;
     } catch (err) {
-      console.error('[chain] onSale handler error:', err.message);
+      // Never throw — 429 / RPC blips must not kill the bot
+      console.error('[chain] sales poll error:', err.shortMessage || err.message);
+    } finally {
+      busy = false;
     }
-  });
+  }
 
-  console.log('[chain] Listening for Transfer events on Moze contract...');
-
-  // Reconnect on provider error — max 1 reconnect per 30s
-  let reconnecting = false;
-  provider.on('error', (err) => {
-    if (reconnecting) return;
-    reconnecting = true;
-    console.error('[chain] Provider error, reconnecting in 30s:', err.message);
-    setTimeout(() => {
-      reconnecting = false;
-      startSalesListener(onSale);
-    }, 30000);
-  });
+  console.log(`[chain] Sales poller every ${POLL_MS}ms (getLogs, crash-safe)...`);
+  tick().catch(() => {});
+  setInterval(() => {
+    tick().catch(() => {});
+  }, POLL_MS);
 }
 
 module.exports = { getNftBalance, getAllBalances, getRoleForCount, startSalesListener };

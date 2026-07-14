@@ -52,10 +52,14 @@ async function registerCommands() {
 // ── Event handlers ────────────────────────────────────────────────────────────
 client.once(Events.ClientReady, async (c) => {
   console.log(`[bot] Logged in as ${c.user.tag}`);
-  await registerCommands();
-  startSalesTracker();
-  // Start admin dashboard
+  // Dashboard first so admin UI stays up even if chain/sales has issues
   require('./dashboard/server');
+  await registerCommands();
+  try {
+    startSalesTracker();
+  } catch (err) {
+    console.error('[bot] sales tracker failed to start:', err.message);
+  }
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
@@ -103,6 +107,14 @@ client.on(Events.GuildMemberAdd, async (member) => {
   } catch (err) {
     console.error('[bot] GuildMemberAdd error:', err.message);
   }
+});
+
+// ── Crash guards — keep dashboard/Discord alive even if sales/RPC blows up ────
+process.on('uncaughtException', (err) => {
+  console.error('[bot] uncaughtException (kept alive):', err?.message || err);
+});
+process.on('unhandledRejection', (err) => {
+  console.error('[bot] unhandledRejection (kept alive):', err?.message || err);
 });
 
 // ── Login ─────────────────────────────────────────────────────────────────────

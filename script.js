@@ -3101,6 +3101,12 @@ const RAFFLE_PRIZE_META = {
       'https://opensea.io/item/robinhood/0x12449b9a29865621be166aaff04dc14a640b4119/1902',
     openseaLabel: 'View #1902 on OpenSea ↗',
   },
+  'moze-raffle-4': {
+    captionHtml: 'Win <strong>Robinhood Punks #9115</strong> — collab prize',
+    opensea:
+      'https://opensea.io/item/robinhood/0xf08c65564eb07d880021105489552080b08e4319/9115',
+    openseaLabel: 'View #9115 on OpenSea ↗',
+  },
 };
 
 function loadRaffleSelectedId() {
@@ -3145,7 +3151,7 @@ function setPickerActiveSlug(slug) {
     if (sub) {
       const base =
         s === 'moze-raffle-1' ? 'Founder' :
-        s === 'moze-raffle-3' ? 'Collab' : 'Prize';
+        (s === 'moze-raffle-3' || s === 'moze-raffle-4') ? 'Collab' : 'Prize';
       if (row) {
         const t = Number(row.totalTickets) || 0;
         sub.textContent = t > 0 ? `${base} · ${t} tix` : base;
@@ -3169,7 +3175,7 @@ function syncRafflePickerUi() {
 function slugToRaffleId(slug) {
   const row = raffleList.find((r) => r.slug === slug);
   if (row?.id) return Number(row.id);
-  const fallback = { 'moze-raffle-1': 1, 'moze-raffle-3': 4 }[slug];
+  const fallback = { 'moze-raffle-1': 1, 'moze-raffle-3': 4, 'moze-raffle-4': 5 }[slug];
   return fallback || null;
 }
 

@@ -150,19 +150,17 @@ async function handleVerify(interaction) {
     'Address: 0xYOUR_WALLET',
   ].join('\n');
 
-  // OpenSea bio is unreliable without OPENSEA_API_KEY — signature is the reliable path.
+  // Signature proves wallet ownership (OpenSea bio needs API key / is unreliable).
   const embed = new EmbedBuilder()
     .setTitle('Holder verify')
     .setDescription([
       'Prove the wallet is yours, then we check your NFTs.',
       '',
       '**How:**',
-      '1. Copy the **exact** 3-line message below',
-      '2. Replace `0xYOUR_WALLET` with your address (**lowercase**)',
-      '3. Sign it in MetaMask / Rabby / [MyCrypto](https://app.mycrypto.com/sign-message)',
-      '4. Hit **Check wallet**',
-      '   • Field 1 = your **wallet address** (~42 chars)',
-      '   • Field 2 = the **signature** from step 3 (~130+ chars) — **not** your address again',
+      '1. Copy the 3-line message below',
+      '2. Put your address in **lowercase** (replace `0xYOUR_WALLET`)',
+      '3. Sign that message (MetaMask / Rabby / [MyCrypto](https://app.mycrypto.com/sign-message))',
+      '4. **Check wallet** → paste address + the signature you get',
       '',
       'Code lasts **10 minutes**. Moze & Gremlin Cartel supported.',
     ].join('\n'))
@@ -204,9 +202,9 @@ async function handleCheckWalletModal(interaction) {
     new ActionRowBuilder().addComponents(
       new TextInputBuilder()
         .setCustomId('sig_input')
-        .setLabel('Signature from wallet (NOT address)')
+        .setLabel('Signature')
         .setStyle(TextInputStyle.Paragraph)
-        .setPlaceholder('Long 0x… from Sign Message (~130 chars). NOT your wallet address.')
+        .setPlaceholder('0x…')
         .setRequired(true)
         .setMaxLength(400)
     ),

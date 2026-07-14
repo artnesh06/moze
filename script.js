@@ -3101,6 +3101,12 @@ const RAFFLE_PRIZE_META = {
       'https://opensea.io/item/robinhood/0x748af7baa726b49316573a124f2644b5638452d7/4284',
     openseaLabel: 'View #4284 on OpenSea ↗',
   },
+  'moze-raffle-3': {
+    captionHtml: 'Win <strong>Gremlin #1902</strong> — Gremlin Cartel collab',
+    opensea:
+      'https://opensea.io/item/robinhood/0x12449b9a29865621be166aaff04dc14a640b4119/1902',
+    openseaLabel: 'View #1902 on OpenSea ↗',
+  },
 };
 
 function loadRaffleSelectedId() {
@@ -3143,7 +3149,10 @@ function setPickerActiveSlug(slug) {
     const row = raffleList.find((r) => r.slug === s);
     const sub = btn.querySelector('.raffle-card-sub');
     if (sub) {
-      const base = s === 'moze-raffle-2' ? 'Collab' : 'Founder';
+      const base =
+        s === 'moze-raffle-1' ? 'Founder' :
+        s === 'moze-raffle-2' ? 'Collab' :
+        s === 'moze-raffle-3' ? 'Collab' : 'Prize';
       if (row) {
         const t = Number(row.totalTickets) || 0;
         sub.textContent = t > 0 ? `${base} · ${t} tix` : base;
@@ -3167,7 +3176,7 @@ function syncRafflePickerUi() {
 function slugToRaffleId(slug) {
   const row = raffleList.find((r) => r.slug === slug);
   if (row?.id) return Number(row.id);
-  const fallback = { 'moze-raffle-1': 1, 'moze-raffle-2': 2 }[slug];
+  const fallback = { 'moze-raffle-1': 1, 'moze-raffle-2': 2, 'moze-raffle-3': 4 }[slug];
   return fallback || null;
 }
 
@@ -3472,15 +3481,12 @@ async function selectRaffleBySlug(slug) {
     await refreshRaffle();
     // If API is old/prod and ignored ?id=, force-correct picker from selection
     if (raffleState?.slug && raffleState.slug !== slug && id != null) {
-      // Production has no raffle #2 yet — keep caption/picker on what user clicked
-      if (slug === 'moze-raffle-2') {
-        setPickerActiveSlug(slug);
-        setTextSafe('raffle-title', 'Moze Raffle #2 — Robin Frogs #4284');
-        setTextSafe('raffle-prize', 'Prize: Robin Frogs #4284');
-        setRaffleStatus(
-          'Raffle #2 needs local API (http://127.0.0.1:3000). Production not deployed yet.',
-          true
-        );
+      // Keep picker on click target if API lag / mismatch
+      setPickerActiveSlug(slug);
+      const meta = RAFFLE_PRIZE_META[slug];
+      if (meta?.captionHtml) {
+        const cap = document.getElementById('raffle-prize-caption');
+        if (cap) cap.innerHTML = meta.captionHtml;
       }
     }
   } catch (err) {

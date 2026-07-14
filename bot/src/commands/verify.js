@@ -66,16 +66,16 @@ async function handleCaptcha(interaction) {
 
   const attachment = new AttachmentBuilder(pngBuffer, { name: 'captcha.png' });
   const embed = new EmbedBuilder()
-    .setTitle('🧩 Captcha Verification')
-    .setDescription('Look at the image below, then click **Submit Answer**.')
+    .setTitle('Captcha')
+    .setDescription('Baca huruf di gambar, terus submit. Jangan salah ngetik.')
     .setImage('attachment://captcha.png')
     .setColor(0xC6E607)
-    .setFooter({ text: 'Moze Bot · expires in 5 minutes' });
+    .setFooter({ text: 'habis 5 menit · coba lagi kalau expired' });
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('btn_captcha_answer')
-      .setLabel('✏️ Submit Answer')
+      .setLabel('Ketik jawabannya')
       .setStyle(ButtonStyle.Primary),
   );
 
@@ -139,30 +139,28 @@ async function handleVerify(interaction) {
   ].join('\n');
 
   const embed = new EmbedBuilder()
-    .setTitle('🔍 Moze Holder Verification')
+    .setTitle('Claim holder role')
     .setDescription([
-      '**Recommended: sign with your wallet** (most reliable)',
-      '1. Copy the **exact** 3-line message below (replace `0xYOUR_WALLET` with your address)',
-      '2. Sign it in MetaMask / Rabby / [MyCrypto Sign](https://app.mycrypto.com/sign-message)',
-      '3. Click **Check Wallet** → paste address + signature',
+      '**Cara paling gampang: sign wallet**',
+      '1. Copy pesan 3 baris di bawah — ganti `0xYOUR_WALLET` pake address lo (huruf kecil)',
+      '2. Sign di MetaMask / Rabby / [MyCrypto](https://app.mycrypto.com/sign-message)',
+      '3. Klik **Lanjut** → paste address + signature',
       '',
-      '**Alt:** put the code alone in [OpenSea bio](https://opensea.io/settings/profile) → Save → then Check Wallet (signature empty).',
+      '**Plan B:** taruh code doang di [OpenSea bio](https://opensea.io/settings/profile) → Save → Lanjut (signature kosongin).',
       '',
-      '⏱️ Code expires in **10 minutes**',
-      '',
-      '**Collections:** Moze Street Art · Gremlin Cartel',
+      'Code hangus **10 menit**. Moze & Gremlin Cartel didukung.',
     ].join('\n'))
     .addFields(
-      { name: '🔑 Your Code', value: `\`\`\`${code}\`\`\`` },
-      { name: '✍️ Message to sign (exact)', value: `\`\`\`${signTemplate}\`\`\`` },
+      { name: 'Code lo', value: `\`\`\`${code}\`\`\`` },
+      { name: 'Pesan buat di-sign (harus persis)', value: `\`\`\`${signTemplate}\`\`\`` },
     )
     .setColor(0xC6E607)
-    .setFooter({ text: 'Moze Street Art · mozestreet.art' });
+    .setFooter({ text: 'mozestreet.art' });
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('btn_check_wallet')
-      .setLabel('✅ Check Wallet')
+      .setLabel('Lanjut')
       .setStyle(ButtonStyle.Success),
   );
 
@@ -172,13 +170,13 @@ async function handleVerify(interaction) {
 async function handleCheckWalletModal(interaction) {
   const modal = new ModalBuilder()
     .setCustomId('modal_check_wallet')
-    .setTitle('🔍 Wallet + Signature');
+    .setTitle('Wallet + signature');
 
   modal.addComponents(
     new ActionRowBuilder().addComponents(
       new TextInputBuilder()
         .setCustomId('wallet_input')
-        .setLabel('Wallet address (0x...)')
+        .setLabel('Address wallet (0x...)')
         .setStyle(TextInputStyle.Short)
         .setPlaceholder('0x...')
         .setMinLength(10).setMaxLength(100).setRequired(true)
@@ -186,9 +184,9 @@ async function handleCheckWalletModal(interaction) {
     new ActionRowBuilder().addComponents(
       new TextInputBuilder()
         .setCustomId('sig_input')
-        .setLabel('Signature (0x... from personal_sign)')
+        .setLabel('Signature (0x...) — kosongin kalau pakai bio')
         .setStyle(TextInputStyle.Paragraph)
-        .setPlaceholder('0x... leave empty only if using OpenSea bio')
+        .setPlaceholder('0x... hasil personal_sign')
         .setRequired(false)
         .setMaxLength(200)
     ),
@@ -329,52 +327,51 @@ async function handleSetupVerify(interaction) {
   await interaction.deferReply({ ephemeral: true });
 
   const embed = new EmbedBuilder()
-    .setTitle('💎 Moze Gang — Verification')
+    .setTitle('Moze Gang')
     .setDescription([
-      'Welcome to **Moze Gang**!',
+      'Masuk dulu, baru ngobrol.',
       '',
-      '🧩 **Get Access** — Solve a quick CAPTCHA to unlock the server.',
-      '✅ **Holder Verify** — Hold Moze or Gremlin Cartel NFTs? Verify your wallet for a holder role.',
+      '**Masuk server** — buktikan lo manusia (bukan bot spam).',
+      '**Holder** — pegang Moze / Gremlin? claim role bag lo.',
+      '',
+      'Klik salah satu tombol di bawah.',
     ].join('\n'))
     .setColor(0xC6E607)
     .setThumbnail('https://www.mozestreet.art/assets/Collection/1.webp')
-    .setFooter({ text: 'Moze Street Art · mozestreet.art' });
+    .setFooter({ text: 'mozestreet.art' });
 
   const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('btn_captcha').setLabel('✅ Verify Access').setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setCustomId('btn_get_code').setLabel('✅ Holder Verify').setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId('btn_captcha').setLabel('Masuk server').setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId('btn_get_code').setLabel('Claim holder role').setStyle(ButtonStyle.Success),
   );
 
   await interaction.channel.send({ embeds: [embed], components: [row] });
-  await interaction.editReply({ content: '✅ Verification panel posted!' });
+  await interaction.editReply({ content: 'Panel posted.' });
 }
 
 async function handleSetupHolder(interaction) {
   await interaction.deferReply({ ephemeral: true });
 
   const embed = new EmbedBuilder()
-    .setTitle('🏆 Moze Holder Verification')
+    .setTitle('Holder role')
     .setDescription([
-      'Verify your NFT holdings to unlock your holder role.',
+      'Punya Moze di wallet? claim role di sini.',
       '',
-      '**Supported Collections:**',
-      '• [Moze Street Art](https://opensea.io/collection/mozestreetart)',
-      '• [Gremlin Cartel](https://opensea.io/collection/gremlin-cartel)',
+      '· [Moze Street Art](https://opensea.io/collection/mozestreetart) — Moze +1 / Fat Moze / Mozeus',
+      '· [Gremlin Cartel](https://opensea.io/collection/gremlin-cartel) — Gremlins',
       '',
-      '**Holder Roles:**',
-      '• Moze (+1) through Mozelord (+20)',
-      '• Gremlins — hold any Gremlin Cartel NFT',
+      'Klik tombol → ikutin step-nya. Gampang.',
     ].join('\n'))
     .setColor(0xC6E607)
-    .setFooter({ text: 'Moze Street Art · mozestreet.art' });
+    .setFooter({ text: 'mozestreet.art' });
 
   const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('btn_get_code').setLabel('✅ Get Code').setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setLabel('OpenSea Settings ↗').setStyle(ButtonStyle.Link).setURL('https://opensea.io/account/settings'),
+    new ButtonBuilder().setCustomId('btn_get_code').setLabel('Mulai verify').setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setLabel('OpenSea ↗').setStyle(ButtonStyle.Link).setURL('https://opensea.io/settings/profile'),
   );
 
   await interaction.channel.send({ embeds: [embed], components: [row] });
-  await interaction.editReply({ content: '✅ Holder panel posted!' });
+  await interaction.editReply({ content: 'Holder panel posted.' });
 }
 
 // ── Interaction routers ───────────────────────────────────────────────────────

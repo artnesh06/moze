@@ -903,8 +903,15 @@ function renderLeaderboardTable(data, keepShown = false) {
   if (!keepShown) lbCurrentShown = LB_INITIAL_SHOW;
 
   const you = (stakeAccount || '').toLowerCase();
-  // Full ranked list (all stakers) — no hard top-25 cut
-  const stakers = (data.rows || []).filter((r) => (Number(r.softMoze) || 0) > 0 || (Number(r.staked) || 0) > 0);
+  // Active Moze only: still hold NFT and/or still have soft-stake positions.
+  // Drop "ghost" rows with soft $MOZE left but held=0 and staked=0 (sold everything).
+  const stakers = (data.rows || []).filter((r) => {
+    const held = Number(r.held) || 0;
+    const staked = Number(r.staked) || 0;
+    const soft = Number(r.softMoze) || 0;
+    if (soft <= 0 && staked <= 0) return false;
+    return held > 0 || staked > 0;
+  });
   if (!stakers.length) {
     tbody.innerHTML = '<tr><td colspan="4" class="lb-empty">No stakers yet — be the first.</td></tr>';
     if (meta) meta.textContent = '0 stakers';

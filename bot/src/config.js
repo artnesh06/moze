@@ -22,6 +22,6 @@ module.exports = {
     { name: 'Mozeus +10',  min: 10, max: 999 },
   ],
 
-  // General member role (after CAPTCHA)
-  memberRole: 'Werido',
+  // General member role (after CAPTCHA) — must match Discord role name exactly
+  memberRole: process.env.MEMBER_ROLE || 'Werido',
 };

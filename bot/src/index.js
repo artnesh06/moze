@@ -7,6 +7,10 @@ const {
   handleSetupVerify, handleSetupHolder,
   handleButtonInteraction, handleModalSubmit,
 } = require('./commands/verify');
+const {
+  raffleStatusCommand, setupRaffleCommand, drawRaffleCommand,
+  handleRaffleStatus, handleSetupRaffle, handleDrawRaffle,
+} = require('./commands/raffle');
 const { startSalesTracker } = require('./sales');
 const config = require('./config');
 
@@ -40,6 +44,9 @@ async function registerCommands() {
           checkCommand.toJSON(),
           setupVerifyCommand.toJSON(),
           setupHolderCommand.toJSON(),
+          raffleStatusCommand.toJSON(),
+          setupRaffleCommand.toJSON(),
+          drawRaffleCommand.toJSON(),
         ],
       }
     );
@@ -77,11 +84,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
     // Slash commands
     if (!interaction.isChatInputCommand()) return;
 
-    if (interaction.commandName === 'captcha')       return await handleCaptcha(interaction);
-    if (interaction.commandName === 'verify')         return await handleVerify(interaction);
-    if (interaction.commandName === 'checkwallet')    return await handleCheck(interaction);
-    if (interaction.commandName === 'setup-verify')   return await handleSetupVerify(interaction);
-    if (interaction.commandName === 'setup-holder')   return await handleSetupHolder(interaction);
+    if (interaction.commandName === 'captcha')        return await handleCaptcha(interaction);
+    if (interaction.commandName === 'verify')          return await handleVerify(interaction);
+    if (interaction.commandName === 'checkwallet')     return await handleCheck(interaction);
+    if (interaction.commandName === 'setup-verify')    return await handleSetupVerify(interaction);
+    if (interaction.commandName === 'setup-holder')    return await handleSetupHolder(interaction);
+    if (interaction.commandName === 'raffle-status')   return await handleRaffleStatus(interaction);
+    if (interaction.commandName === 'setup-raffle')    return await handleSetupRaffle(interaction);
+    if (interaction.commandName === 'draw-raffle')     return await handleDrawRaffle(interaction);
 
   } catch (err) {
     console.error(`[bot] Interaction error:`, err);

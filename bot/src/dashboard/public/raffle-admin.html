@@ -251,17 +251,20 @@
             onerror="this.style.display='none'">
           <div class="raffle-card-name">${r.title || r.prizeLabel || '—'}</div>
           <div class="raffle-card-meta">
-            <span class="badge ${open ? 'badge-open' : 'badge-closed'}">${open ? 'OPEN' : 'CLOSED'}</span>
+            <span class="badge ${open ? 'badge-open' : 'badge-closed'}">${r.status === 'drawn' ? 'DRAWN' : (open ? 'OPEN' : 'CLOSED')}</span>
             <br>
             Prize: ${r.prizeLabel || '—'}<br>
             Cost: ${r.ticketCost || '—'} $MOZE/ticket<br>
+            Tickets: <strong>${r.totalTickets || 0}</strong> · Entrants: <strong>${r.entrants || 0}</strong><br>
             Ends: ${ends}
+            ${r.winnerAddress || r.winner_address ? `<br>Winner: <code>${r.winnerAddress || r.winner_address}</code>` : ''}
           </div>
           <div class="card-actions">
             <button class="btn btn-sm" onclick="editRaffle(${r.id})">Edit</button>
             <button class="btn btn-sm ${open ? 'btn-danger' : ''}" onclick="toggleRaffle(${r.id}, ${!open})">
               ${open ? 'Close' : 'Open'}
             </button>
+            <button class="btn btn-sm" onclick="drawRaffle(${r.id})" title="Weighted draw by tickets">Draw</button>
             <button class="btn btn-sm btn-danger" onclick="deleteRaffle(${r.id})">Delete</button>
           </div>
         </div>
@@ -366,11 +369,27 @@
   };
 
   window.deleteRaffle = async (id) => {
-    if (!confirm('Delete this raffle? This cannot be undone.')) return;
-    const res = await fetch(`/api/raffles/${id}`, { method: 'DELETE' });
+    if (!confirm('Delete this raffle? Entries with tickets require force — confirm carefully.')) return;
+    const res = await fetch(`/api/raffles/${id}?force=1`, { method: 'DELETE' });
     const data = await res.json();
-    toast(data.ok ? '✅ Deleted' : '❌ Error', !data.ok);
+    toast(data.ok ? '✅ Deleted' : '❌ ' + (data.error || 'Error'), !data.ok);
     loadRaffles();
+  };
+
+  window.drawRaffle = async (id) => {
+    if (!confirm('Draw a weighted winner for this raffle? This sets status to DRAWN.')) return;
+    const res = await fetch(`/api/raffles/${id}/draw`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    const data = await res.json();
+    if (data.ok || data.winnerAddress) {
+      toast(`🏆 Winner: ${data.winnerAddress}`);
+      loadRaffles();
+    } else {
+      toast('❌ ' + (data.error || 'Draw failed'), true);
+    }
   };
 
   loadRaffles();

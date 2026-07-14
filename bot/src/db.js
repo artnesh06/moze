@@ -51,7 +51,7 @@ const defaults = [
   ['sales_webhook', process.env.SALES_WEBHOOK_URL || ''],
   ['sales_channel_id', ''],
   ['verify_channel_id', process.env.VERIFY_CHANNEL_ID || ''],
-  ['member_role', process.env.MEMBER_ROLE || 'Verified'],
+  ['member_role', process.env.MEMBER_ROLE || 'Werido'],
 ];
 
 const insertDefault = db.prepare(

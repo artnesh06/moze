@@ -227,6 +227,20 @@ app.delete('/api/raffles/:id', requireAuth, async (req, res) => {
   }
 });
 
+app.post('/api/raffles/:id/draw', requireAuth, async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const force = req.body?.force || req.query.force === '1' ? '?force=1' : '';
+  try {
+    const data = await mozeAdmin(`/v1/admin/raffles/${id}/draw${force}`, {
+      method: 'POST',
+      body: {},
+    });
+    res.json(data);
+  } catch (err) {
+    res.status(err.status || 400).json({ error: err.message });
+  }
+});
+
 // ── Public raffle API — proxy moze-api public list (no auth) ──────────────────
 app.get('/public/raffles', async (req, res) => {
   res.header('Access-Control-Allow-Origin', '*');

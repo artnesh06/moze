@@ -67,15 +67,15 @@ async function handleCaptcha(interaction) {
   const attachment = new AttachmentBuilder(pngBuffer, { name: 'captcha.png' });
   const embed = new EmbedBuilder()
     .setTitle('Captcha')
-    .setDescription('Baca huruf di gambar, terus submit. Jangan salah ngetik.')
+    .setDescription('Type the letters you see in the image.')
     .setImage('attachment://captcha.png')
     .setColor(0xC6E607)
-    .setFooter({ text: 'habis 5 menit · coba lagi kalau expired' });
+    .setFooter({ text: 'Expires in 5 minutes' });
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('btn_captcha_answer')
-      .setLabel('Ketik jawabannya')
+      .setLabel('Enter answer')
       .setStyle(ButtonStyle.Primary),
   );
 
@@ -85,15 +85,15 @@ async function handleCaptcha(interaction) {
 async function handleCaptchaAnswer(interaction) {
   const modal = new ModalBuilder()
     .setCustomId('modal_captcha')
-    .setTitle('🧩 Type the CAPTCHA');
+    .setTitle('Enter captcha');
 
   modal.addComponents(
     new ActionRowBuilder().addComponents(
       new TextInputBuilder()
         .setCustomId('captcha_input')
-        .setLabel('Characters in the image')
+        .setLabel('Letters from the image')
         .setStyle(TextInputStyle.Short)
-        .setPlaceholder('e.g. CHMVZ')
+        .setPlaceholder('e.g. FD93X')
         .setMinLength(4).setMaxLength(6).setRequired(true)
     )
   );
@@ -104,10 +104,10 @@ async function handleCaptchaModalSubmit(interaction) {
   await interaction.deferReply({ ephemeral: true });
 
   const pending = getCaptcha(interaction.user.id);
-  if (!pending) return interaction.editReply({ content: '❌ No active CAPTCHA. Click **Verify Access** again.' });
+  if (!pending) return interaction.editReply({ content: 'No active captcha. Hit **Verify Access** again.' });
   if (Date.now() - pending.created_at > 5 * 60 * 1000) {
     deleteCaptcha(interaction.user.id);
-    return interaction.editReply({ content: '⏱️ Expired. Click **Verify Access** again.' });
+    return interaction.editReply({ content: 'That captcha expired. Hit **Verify Access** again.' });
   }
 
   const answer = interaction.fields.getTextInputValue('captcha_input').trim().toUpperCase();
@@ -118,9 +118,9 @@ async function handleCaptchaModalSubmit(interaction) {
     const memberRoleName = getSetting('member_role') || 'Verified';
     const role = interaction.guild.roles.cache.find(r => r.name === memberRoleName);
     if (role) await interaction.member.roles.add(role).catch(() => {});
-    await interaction.editReply({ content: `✅ Correct! You now have the **${memberRoleName}** role. Welcome to Moze Gang! 🎨` });
+    await interaction.editReply({ content: `You're in. Role **${memberRoleName}** is on.` });
   } else {
-    await interaction.editReply({ content: '❌ Wrong answer. Click **Verify Access** again to retry.' });
+    await interaction.editReply({ content: 'Wrong letters. Hit **Verify Access** and try again.' });
   }
 }
 
@@ -139,20 +139,20 @@ async function handleVerify(interaction) {
   ].join('\n');
 
   const embed = new EmbedBuilder()
-    .setTitle('Claim holder role')
+    .setTitle('Holder verify')
     .setDescription([
-      '**Cara paling gampang: sign wallet**',
-      '1. Copy pesan 3 baris di bawah — ganti `0xYOUR_WALLET` pake address lo (huruf kecil)',
-      '2. Sign di MetaMask / Rabby / [MyCrypto](https://app.mycrypto.com/sign-message)',
-      '3. Klik **Lanjut** → paste address + signature',
+      '**Best path: sign with your wallet**',
+      '1. Copy the 3-line message below — swap `0xYOUR_WALLET` for your address (lowercase)',
+      '2. Sign it in MetaMask / Rabby / [MyCrypto](https://app.mycrypto.com/sign-message)',
+      '3. Hit **Continue** → paste address + signature',
       '',
-      '**Plan B:** taruh code doang di [OpenSea bio](https://opensea.io/settings/profile) → Save → Lanjut (signature kosongin).',
+      '**Backup:** put only the code in your [OpenSea bio](https://opensea.io/settings/profile), Save, then Continue (leave signature empty).',
       '',
-      'Code hangus **10 menit**. Moze & Gremlin Cartel didukung.',
+      'Code lasts **10 minutes**. Works for Moze & Gremlin Cartel.',
     ].join('\n'))
     .addFields(
-      { name: 'Code lo', value: `\`\`\`${code}\`\`\`` },
-      { name: 'Pesan buat di-sign (harus persis)', value: `\`\`\`${signTemplate}\`\`\`` },
+      { name: 'Your code', value: `\`\`\`${code}\`\`\`` },
+      { name: 'Message to sign (exact)', value: `\`\`\`${signTemplate}\`\`\`` },
     )
     .setColor(0xC6E607)
     .setFooter({ text: 'mozestreet.art' });
@@ -160,7 +160,7 @@ async function handleVerify(interaction) {
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('btn_check_wallet')
-      .setLabel('Lanjut')
+      .setLabel('Continue')
       .setStyle(ButtonStyle.Success),
   );
 
@@ -176,7 +176,7 @@ async function handleCheckWalletModal(interaction) {
     new ActionRowBuilder().addComponents(
       new TextInputBuilder()
         .setCustomId('wallet_input')
-        .setLabel('Address wallet (0x...)')
+        .setLabel('Wallet address (0x...)')
         .setStyle(TextInputStyle.Short)
         .setPlaceholder('0x...')
         .setMinLength(10).setMaxLength(100).setRequired(true)
@@ -184,9 +184,9 @@ async function handleCheckWalletModal(interaction) {
     new ActionRowBuilder().addComponents(
       new TextInputBuilder()
         .setCustomId('sig_input')
-        .setLabel('Signature (0x...) — kosongin kalau pakai bio')
+        .setLabel('Signature (0x...) — empty if using OpenSea bio')
         .setStyle(TextInputStyle.Paragraph)
-        .setPlaceholder('0x... hasil personal_sign')
+        .setPlaceholder('0x... from personal_sign')
         .setRequired(false)
         .setMaxLength(200)
     ),
@@ -206,73 +206,73 @@ async function handleCheckModalSubmit(interaction) {
   }
 
   if (!/^0x[0-9a-fA-F]{40}$/.test(wallet)) {
-    return interaction.editReply({ content: '❌ Invalid wallet address.' });
+    return interaction.editReply({ content: 'That wallet address looks invalid.' });
   }
 
   const pending = getCode(interaction.user.id);
-  if (!pending) return interaction.editReply({ content: '❌ No active code. Click **Holder Verify** again.' });
+  if (!pending) return interaction.editReply({ content: 'No active code. Hit **Holder Verify** again.' });
   if (Date.now() - pending.created_at > 10 * 60 * 1000) {
-    return interaction.editReply({ content: '⏱️ Code expired. Click **Holder Verify** again.' });
+    return interaction.editReply({ content: 'Code expired. Hit **Holder Verify** again.' });
   }
 
   let proven = false;
 
   // 1) Preferred: EIP-191 personal_sign
   if (signature) {
-    await interaction.editReply({ content: `🔏 Checking signature for \`${wallet}\`...` });
+    await interaction.editReply({ content: `Checking signature for \`${wallet}\`…` });
     try {
       proven = verifyWalletSignature(pending.code, wallet, signature);
       if (!proven) {
         return interaction.editReply({
           content: [
-            '❌ Signature does not match this wallet + code.',
-            'Sign **exactly**:',
+            'Signature doesn’t match this wallet + code.',
+            'Sign **exactly** this message:',
             '```',
             buildSignMessage(pending.code, wallet),
             '```',
-            'Address line must be lowercase `0x...` matching the wallet field.',
+            'Address line must be lowercase and match the wallet you paste.',
           ].join('\n'),
         });
       }
     } catch (err) {
       return interaction.editReply({
-        content: `❌ Invalid signature: ${err.message}\nMake sure you signed the exact 3-line message.`,
+        content: `Bad signature (${err.message}). Sign the exact 3-line message and try again.`,
       });
     }
   } else {
     // 2) Fallback: OpenSea bio
-    await interaction.editReply({ content: `🔍 No signature — checking OpenSea bio for \`${wallet}\`...` });
+    await interaction.editReply({ content: `No signature — checking OpenSea bio for \`${wallet}\`…` });
     try {
       proven = await checkOpenSeaBio(wallet, pending.code);
     } catch (err) {
       console.error('[verify] OpenSea check error:', err.message);
       return interaction.editReply({
         content: [
-          '⚠️ OpenSea bio check failed (API/page unavailable).',
-          '**Use wallet signature instead** (recommended):',
+          'Couldn’t read OpenSea bio right now.',
+          '**Sign with your wallet instead:**',
           '```',
           buildSignMessage(pending.code, wallet),
           '```',
-          'Sign in MetaMask / Rabby / MyCrypto → Check Wallet again with signature filled.',
+          'Then hit **Continue** and paste address + signature.',
         ].join('\n'),
       });
     }
     if (!proven) {
       return interaction.editReply({
         content: [
-          `❌ Code \`${pending.code}\` not found in OpenSea bio of \`${wallet}\`.`,
+          `Code \`${pending.code}\` not found in the OpenSea bio for \`${wallet}\`.`,
           '',
-          '**Easiest fix — sign instead of bio:**',
+          '**Easier:** sign this message, then retry with the signature filled in:',
           '```',
           buildSignMessage(pending.code, wallet),
           '```',
-          'Or put this **exact** code in bio → Save → wait 15s → retry.',
+          'Or paste that **exact** code in your bio → Save → wait ~15s → try again.',
         ].join('\n'),
       });
     }
   }
 
-  await interaction.editReply({ content: '✅ Ownership confirmed! Checking NFT balances...' });
+  await interaction.editReply({ content: 'Wallet checks out. Looking up your NFTs…' });
 
   const { moze: mozeBalance, gremlins: gremlinsBalance } = await getAllBalances(wallet);
   const roles = getRoles();
@@ -298,12 +298,18 @@ async function handleCheckModalSubmit(interaction) {
 
   if (!assigned.length) {
     return interaction.editReply({
-      content: `✅ Wallet verified: \`${wallet}\`\n\nNo NFTs found from supported collections.\n• [Moze](https://opensea.io/collection/mozestreetart)\n• [Gremlin Cartel](https://opensea.io/collection/gremlin-cartel)`,
+      content: [
+        `Wallet linked: \`${wallet}\``,
+        '',
+        'No Moze / Gremlin NFTs found on-chain for this address.',
+        '• [Moze](https://opensea.io/collection/mozestreetart)',
+        '• [Gremlin Cartel](https://opensea.io/collection/gremlin-cartel)',
+      ].join('\n'),
     });
   }
 
   await interaction.editReply({
-    content: [`✅ **Holder verified!**`, `Wallet: \`${wallet}\``, `Roles: ${assigned.join(', ')}`].join('\n'),
+    content: [`**Holder verified**`, `Wallet: \`${wallet}\``, `Roles: ${assigned.join(', ')}`].join('\n'),
   });
 }
 
@@ -312,10 +318,10 @@ async function handleCheckModalSubmit(interaction) {
 async function handleCheck(interaction) {
   await interaction.deferReply({ ephemeral: true });
   const wallet = interaction.options.getString('wallet').trim();
-  if (!/^0x[0-9a-fA-F]{40}$/.test(wallet)) return interaction.editReply({ content: '❌ Invalid wallet address.' });
+  if (!/^0x[0-9a-fA-F]{40}$/.test(wallet)) return interaction.editReply({ content: 'That wallet address looks invalid.' });
   const pending = getCode(interaction.user.id);
-  if (!pending) return interaction.editReply({ content: '❌ No active code. Run `/verify` first.' });
-  if (Date.now() - pending.created_at > 10 * 60 * 1000) return interaction.editReply({ content: '⏱️ Code expired.' });
+  if (!pending) return interaction.editReply({ content: 'No active code. Run **Holder Verify** first.' });
+  if (Date.now() - pending.created_at > 10 * 60 * 1000) return interaction.editReply({ content: 'Code expired. Start again.' });
   // Reuse modal submit logic by simulating the fields
   interaction.fields = { getTextInputValue: () => wallet };
   return handleCheckModalSubmit(interaction);
@@ -352,18 +358,18 @@ async function handleSetupHolder(interaction) {
   const embed = new EmbedBuilder()
     .setTitle('Holder role')
     .setDescription([
-      'Punya Moze di wallet? claim role di sini.',
+      'Got Moze in your wallet? Claim your role here.',
       '',
       '· [Moze Street Art](https://opensea.io/collection/mozestreetart) — Moze +1 / Fat Moze / Mozeus',
       '· [Gremlin Cartel](https://opensea.io/collection/gremlin-cartel) — Gremlins',
       '',
-      'Klik tombol → ikutin step-nya. Gampang.',
+      'Hit the button and follow the steps.',
     ].join('\n'))
     .setColor(0xC6E607)
     .setFooter({ text: 'mozestreet.art' });
 
   const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('btn_get_code').setLabel('Mulai verify').setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId('btn_get_code').setLabel('Holder Verify').setStyle(ButtonStyle.Success),
     new ButtonBuilder().setLabel('OpenSea ↗').setStyle(ButtonStyle.Link).setURL('https://opensea.io/settings/profile'),
   );
 

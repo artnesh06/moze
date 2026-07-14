@@ -4,6 +4,7 @@ const {
   ModalBuilder, TextInputBuilder, TextInputStyle,
 } = require('discord.js');
 const axios = require('axios');
+const { ethers } = require('ethers');
 const { generateCaptcha } = require('../captcha');
 const {
   saveCode, saveCaptcha, getCaptcha, deleteCaptcha,
@@ -13,6 +14,21 @@ const { getAllBalances, getRoleForCount } = require('../chain');
 
 function makeVerifyCode() {
   return 'MOZE-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+}
+
+/** Exact message user must personal_sign */
+function buildSignMessage(code, wallet) {
+  return [
+    'Moze Holder Verify',
+    `Code: ${code}`,
+    `Address: ${String(wallet).toLowerCase()}`,
+  ].join('\n');
+}
+
+function verifyWalletSignature(code, wallet, signature) {
+  const msg = buildSignMessage(code, wallet);
+  const recovered = ethers.verifyMessage(msg, signature.trim());
+  return recovered.toLowerCase() === String(wallet).toLowerCase();
 }
 
 // ── Commands ──────────────────────────────────────────────────────────────────
@@ -116,21 +132,30 @@ async function handleVerify(interaction) {
   const code = makeVerifyCode();
   saveCode(interaction.user.id, code);
 
+  const signTemplate = [
+    'Moze Holder Verify',
+    `Code: ${code}`,
+    'Address: 0xYOUR_WALLET',
+  ].join('\n');
+
   const embed = new EmbedBuilder()
     .setTitle('🔍 Moze Holder Verification')
     .setDescription([
-      '**Step 1:** Copy your unique code below',
-      '**Step 2:** Paste it into your **OpenSea bio**',
-      '↳ [opensea.io/account/settings](https://opensea.io/account/settings) → Profile → Bio',
-      '**Step 3:** Click **Check Wallet** and enter your wallet address',
+      '**Recommended: sign with your wallet** (most reliable)',
+      '1. Copy the **exact** 3-line message below (replace `0xYOUR_WALLET` with your address)',
+      '2. Sign it in MetaMask / Rabby / [MyCrypto Sign](https://app.mycrypto.com/sign-message)',
+      '3. Click **Check Wallet** → paste address + signature',
+      '',
+      '**Alt:** put the code alone in [OpenSea bio](https://opensea.io/settings/profile) → Save → then Check Wallet (signature empty).',
       '',
       '⏱️ Code expires in **10 minutes**',
       '',
-      '**Collections supported:**',
-      '• [Moze Street Art](https://opensea.io/collection/mozestreetart) → Moze (+1) to Mozelord (+20)',
-      '• [Gremlin Cartel](https://opensea.io/collection/gremlin-cartel) → Gremlins role',
+      '**Collections:** Moze Street Art · Gremlin Cartel',
     ].join('\n'))
-    .addFields({ name: '🔑 Your Code', value: `\`\`\`${code}\`\`\`` })
+    .addFields(
+      { name: '🔑 Your Code', value: `\`\`\`${code}\`\`\`` },
+      { name: '✍️ Message to sign (exact)', value: `\`\`\`${signTemplate}\`\`\`` },
+    )
     .setColor(0xC6E607)
     .setFooter({ text: 'Moze Street Art · mozestreet.art' });
 
@@ -147,17 +172,26 @@ async function handleVerify(interaction) {
 async function handleCheckWalletModal(interaction) {
   const modal = new ModalBuilder()
     .setCustomId('modal_check_wallet')
-    .setTitle('🔍 Enter Your Wallet');
+    .setTitle('🔍 Wallet + Signature');
 
   modal.addComponents(
     new ActionRowBuilder().addComponents(
       new TextInputBuilder()
         .setCustomId('wallet_input')
-        .setLabel('Your wallet address')
+        .setLabel('Wallet address (0x...)')
         .setStyle(TextInputStyle.Short)
         .setPlaceholder('0x...')
         .setMinLength(10).setMaxLength(100).setRequired(true)
-    )
+    ),
+    new ActionRowBuilder().addComponents(
+      new TextInputBuilder()
+        .setCustomId('sig_input')
+        .setLabel('Signature (0x... from personal_sign)')
+        .setStyle(TextInputStyle.Paragraph)
+        .setPlaceholder('0x... leave empty only if using OpenSea bio')
+        .setRequired(false)
+        .setMaxLength(200)
+    ),
   );
   await interaction.showModal(modal);
 }
@@ -166,6 +200,13 @@ async function handleCheckModalSubmit(interaction) {
   await interaction.deferReply({ ephemeral: true });
 
   const wallet = interaction.fields.getTextInputValue('wallet_input').trim();
+  let signature = '';
+  try {
+    signature = (interaction.fields.getTextInputValue('sig_input') || '').trim();
+  } catch {
+    signature = '';
+  }
+
   if (!/^0x[0-9a-fA-F]{40}$/.test(wallet)) {
     return interaction.editReply({ content: '❌ Invalid wallet address.' });
   }
@@ -176,41 +217,64 @@ async function handleCheckModalSubmit(interaction) {
     return interaction.editReply({ content: '⏱️ Code expired. Click **Holder Verify** again.' });
   }
 
-  await interaction.editReply({ content: `🔍 Checking OpenSea bio for \`${wallet}\`...` });
+  let proven = false;
 
-  let bioHasCode = false;
-  let openseaError = null;
-  try {
-    bioHasCode = await checkOpenSeaBio(wallet, pending.code);
-  } catch (err) {
-    openseaError = err.message;
-    console.error('[verify] OpenSea check error:', err.message);
-  }
-
-  if (!bioHasCode) {
-    if (openseaError) {
+  // 1) Preferred: EIP-191 personal_sign
+  if (signature) {
+    await interaction.editReply({ content: `🔏 Checking signature for \`${wallet}\`...` });
+    try {
+      proven = verifyWalletSignature(pending.code, wallet, signature);
+      if (!proven) {
+        return interaction.editReply({
+          content: [
+            '❌ Signature does not match this wallet + code.',
+            'Sign **exactly**:',
+            '```',
+            buildSignMessage(pending.code, wallet),
+            '```',
+            'Address line must be lowercase `0x...` matching the wallet field.',
+          ].join('\n'),
+        });
+      }
+    } catch (err) {
+      return interaction.editReply({
+        content: `❌ Invalid signature: ${err.message}\nMake sure you signed the exact 3-line message.`,
+      });
+    }
+  } else {
+    // 2) Fallback: OpenSea bio
+    await interaction.editReply({ content: `🔍 No signature — checking OpenSea bio for \`${wallet}\`...` });
+    try {
+      proven = await checkOpenSeaBio(wallet, pending.code);
+    } catch (err) {
+      console.error('[verify] OpenSea check error:', err.message);
       return interaction.editReply({
         content: [
-          `⚠️ Could not read OpenSea profile: ${openseaError}`,
-          `Looking for code: \`${pending.code}\``,
-          'Wait 10s after saving bio, then click **Check Wallet** again.',
+          '⚠️ OpenSea bio check failed (API/page unavailable).',
+          '**Use wallet signature instead** (recommended):',
+          '```',
+          buildSignMessage(pending.code, wallet),
+          '```',
+          'Sign in MetaMask / Rabby / MyCrypto → Check Wallet again with signature filled.',
         ].join('\n'),
       });
     }
-    return interaction.editReply({
-      content: [
-        `❌ Code \`${pending.code}\` not found in bio of \`${wallet}\`.`,
-        '',
-        '**Important:** use the **same code** Discord just gave you (not an old one).',
-        '1. Copy the code above exactly',
-        '2. Paste in [OpenSea bio](https://opensea.io/settings/profile) → **Save**',
-        '3. Wait ~10 seconds',
-        '4. Click **Check Wallet** again',
-      ].join('\n'),
-    });
+    if (!proven) {
+      return interaction.editReply({
+        content: [
+          `❌ Code \`${pending.code}\` not found in OpenSea bio of \`${wallet}\`.`,
+          '',
+          '**Easiest fix — sign instead of bio:**',
+          '```',
+          buildSignMessage(pending.code, wallet),
+          '```',
+          'Or put this **exact** code in bio → Save → wait 15s → retry.',
+        ].join('\n'),
+      });
+    }
   }
 
-  await interaction.editReply({ content: '✅ Code confirmed! Checking NFT balances...' });
+  await interaction.editReply({ content: '✅ Ownership confirmed! Checking NFT balances...' });
 
   const { moze: mozeBalance, gremlins: gremlinsBalance } = await getAllBalances(wallet);
   const roles = getRoles();

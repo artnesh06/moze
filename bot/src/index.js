@@ -58,7 +58,8 @@ async function registerCommands() {
 
 // ── Event handlers ────────────────────────────────────────────────────────────
 client.once(Events.ClientReady, async (c) => {
-  console.log(`[bot] Logged in as ${c.user.tag}`);
+  const ver = require('../package.json').version;
+  console.log(`[bot] Logged in as ${c.user.tag} · moze-bot v${ver}`);
   // Dashboard first so admin UI stays up even if chain/sales has issues
   require('./dashboard/server');
   await registerCommands();

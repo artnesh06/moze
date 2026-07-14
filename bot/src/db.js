@@ -51,7 +51,7 @@ const defaults = [
   ['sales_webhook', process.env.SALES_WEBHOOK_URL || ''],
   ['sales_channel_id', ''],
   ['verify_channel_id', process.env.VERIFY_CHANNEL_ID || ''],
-  ['member_role', process.env.MEMBER_ROLE || 'Werido'],
+  ['member_role', process.env.MEMBER_ROLE || 'Verified'],
 ];
 
 const insertDefault = db.prepare(
@@ -59,19 +59,43 @@ const insertDefault = db.prepare(
 );
 for (const [k, v] of defaults) insertDefault.run(k, v);
 
-// Default roles if empty — names MUST match Discord role names exactly
-// Live Moze Gang: Moze (+1), Mozeeker (+3), Mozarrior (+5), Mozemperor (+10), Mozeus (+15), Mozelord (+20)
-const roleCount = db.prepare('SELECT COUNT(*) as c FROM roles_config').get();
-if (roleCount.c === 0) {
+// Fix legacy typo if still on default wrong name
+const memberRole = db.prepare("SELECT value FROM settings WHERE key = 'member_role'").get();
+if (memberRole && memberRole.value === 'Werido') {
+  db.prepare("UPDATE settings SET value = 'Verified' WHERE key = 'member_role'").run();
+}
+
+/** Discord role names for Moze Gang — must match server exactly */
+const DEFAULT_HOLDER_ROLES = [
+  ['Moze (+1)', 1, 2],
+  ['Mozeeker (+3)', 3, 4],
+  ['Mozarrior (+5)', 5, 9],
+  ['Mozemperor (+10)', 10, 14],
+  ['Mozeus (+15)', 15, 19],
+  ['Mozelord (+20)', 20, 9999],
+];
+
+function seedDefaultRoles() {
   const insertRole = db.prepare(
     'INSERT INTO roles_config (role_name, min_hold, max_hold) VALUES (?, ?, ?)'
   );
-  insertRole.run('Moze (+1)', 1, 2);
-  insertRole.run('Mozeeker (+3)', 3, 4);
-  insertRole.run('Mozarrior (+5)', 5, 9);
-  insertRole.run('Mozemperor (+10)', 10, 14);
-  insertRole.run('Mozeus (+15)', 15, 19);
-  insertRole.run('Mozelord (+20)', 20, 9999);
+  for (const r of DEFAULT_HOLDER_ROLES) insertRole.run(...r);
+}
+
+// Default roles if empty
+const roleCount = db.prepare('SELECT COUNT(*) as c FROM roles_config').get();
+if (roleCount.c === 0) {
+  seedDefaultRoles();
+} else {
+  // Migrate known legacy names that don't match Discord (caused "NFT but no role")
+  const legacy = db.prepare(
+    `SELECT COUNT(*) as c FROM roles_config WHERE role_name IN ('Moze +1', 'Fat Moze +5', 'Mozeus +10')`
+  ).get();
+  if (legacy.c > 0) {
+    console.log('[db] Migrating legacy roles_config → Discord-matching names');
+    db.prepare('DELETE FROM roles_config').run();
+    seedDefaultRoles();
+  }
 }
 
 module.exports = {

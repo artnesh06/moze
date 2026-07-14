@@ -22,6 +22,16 @@ function requireAuth(req, res, next) {
   res.redirect('/login');
 }
 
+// ── Health (Coolify / uptime — no auth) ───────────────────────────────────────
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    ok: true,
+    service: 'moze-bot',
+    version: require('../../package.json').version,
+    ts: Date.now(),
+  });
+});
+
 // ── Login ─────────────────────────────────────────────────────────────────────
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public/login.html')));
 

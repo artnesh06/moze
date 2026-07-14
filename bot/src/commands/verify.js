@@ -403,48 +403,92 @@ async function handleModalSubmit(interaction) {
 
 // ── OpenSea bio check ─────────────────────────────────────────────────────────
 
-function bioContainsCode(bio, code) {
-  if (!bio || !code) return false;
-  return String(bio).toUpperCase().includes(String(code).toUpperCase());
+function bioContainsCode(text, code) {
+  if (!text || !code) return false;
+  const t = String(text);
+  const c = String(code).trim();
+  // exact / substring (case-insensitive)
+  if (t.toUpperCase().includes(c.toUpperCase())) return true;
+  // whole-token match for pure numbers (avoid random digit noise)
+  if (/^\d+$/.test(c)) {
+    const re = new RegExp(`(?:^|[^0-9])${c}(?:[^0-9]|$)`);
+    if (re.test(t)) return true;
+  }
+  return false;
 }
 
-/** Official API (needs OPENSEA_API_KEY). */
+function extractBiosFromHtml(html) {
+  const found = [];
+  if (!html || typeof html !== 'string') return found;
+  const patterns = [
+    /"bio"\s*:\s*"((?:\\.|[^"\\])*)"/g,
+    /\\"bio\\"\s*:\s*\\"((?:\\.|[^"\\])*)\\"/g,
+    /"bio"\s*:\s*'((?:\\.|[^'\\])*)'/g,
+    /bio["']?\s*[:=]\s*["']([^"']{1,500})["']/gi,
+  ];
+  for (const re of patterns) {
+    let m;
+    while ((m = re.exec(html)) !== null) {
+      let raw = m[1];
+      try {
+        raw = JSON.parse(`"${raw}"`);
+      } catch {
+        raw = raw.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\u([\dA-Fa-f]{4})/g, (_, h) =>
+          String.fromCharCode(parseInt(h, 16))
+        );
+      }
+      if (raw && String(raw).trim() && String(raw).toLowerCase() !== 'bio') {
+        found.push(String(raw));
+      }
+    }
+  }
+  return found;
+}
+
+const OS_HEADERS = {
+  'User-Agent':
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+  Accept: 'text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8',
+  'Accept-Language': 'en-US,en;q=0.9',
+  'Cache-Control': 'no-cache',
+};
+
+/** Official API (best with OPENSEA_API_KEY). */
 async function fetchBioViaApi(wallet) {
-  const headers = { Accept: 'application/json' };
+  const headers = { ...OS_HEADERS, Accept: 'application/json' };
   if (process.env.OPENSEA_API_KEY) headers['X-API-KEY'] = process.env.OPENSEA_API_KEY;
-  const res = await axios.get(`https://api.opensea.io/api/v2/accounts/${wallet}`, {
+  const addr = String(wallet).toLowerCase();
+  const res = await axios.get(`https://api.opensea.io/api/v2/accounts/${addr}`, {
     headers,
-    timeout: 10000,
+    timeout: 12000,
     validateStatus: () => true,
   });
   if (res.status === 200 && res.data) {
-    return res.data.bio || res.data.account?.bio || '';
+    return res.data.bio || res.data.account?.bio || res.data.profile?.bio || '';
   }
-  // missing key / rate limit
-  const err = new Error(res.data?.errors?.[0] || `OpenSea API ${res.status}`);
+  const msg =
+    (Array.isArray(res.data?.errors) && res.data.errors[0]) ||
+    res.data?.message ||
+    `OpenSea API ${res.status}`;
+  const err = new Error(msg);
   err.status = res.status;
   throw err;
 }
 
-/**
- * Fallback: scrape public profile HTML for "bio":"..." or the code itself.
- * OpenSea v2 accounts API now requires a key; HTML still embeds profile JSON.
- */
+/** Public profile page scrape (fallback when API key missing). */
 async function fetchBioViaPage(wallet) {
+  const addr = String(wallet);
   const urls = [
-    `https://opensea.io/${wallet}`,
-    `https://opensea.io/${wallet.toLowerCase()}`,
+    `https://opensea.io/${addr}`,
+    `https://opensea.io/${addr.toLowerCase()}`,
   ];
   let lastErr;
+  let lastHtml = '';
   for (const url of urls) {
     try {
       const res = await axios.get(url, {
-        timeout: 12000,
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          Accept: 'text/html,application/xhtml+xml',
-        },
+        timeout: 15000,
+        headers: OS_HEADERS,
         validateStatus: () => true,
         maxRedirects: 5,
       });
@@ -452,49 +496,100 @@ async function fetchBioViaPage(wallet) {
         lastErr = new Error(`profile page ${res.status}`);
         continue;
       }
-      const html = res.data;
-      // Prefer explicit bio JSON field
-      const bioMatch =
-        html.match(/"bio"\s*:\s*"((?:\\.|[^"\\])*)"/) ||
-        html.match(/\\"bio\\"\s*:\s*\\"((?:\\.|[^"\\])*)\\"/);
-      if (bioMatch) {
-        try {
-          return JSON.parse(`"${bioMatch[1]}"`);
-        } catch {
-          return bioMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
-        }
+      lastHtml = res.data;
+      const bios = extractBiosFromHtml(lastHtml);
+      if (bios.length) {
+        // longest non-empty bio-ish string
+        return bios.sort((a, b) => b.length - a.length)[0];
       }
-      // Last resort: page body contains the code string
-      return html;
+      // return full HTML so code search still works
+      return lastHtml;
     } catch (e) {
       lastErr = e;
     }
   }
+  if (lastHtml) return lastHtml;
   throw lastErr || new Error('OpenSea profile unavailable');
+}
+
+async function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
 }
 
 /**
  * Returns true if code is in OpenSea bio.
- * Throws only when we cannot read profile at all (so UI can show API error).
+ * Retries (OpenSea cache lag after Save is common).
+ * Throws only when we cannot read profile at all.
  */
 async function checkOpenSeaBio(wallet, code) {
-  // 1) API (best if key configured)
-  try {
-    const bio = await fetchBioViaApi(wallet);
-    if (bioContainsCode(bio, code)) return true;
-    // API worked but code missing — still try page (cache lag)
-  } catch (err) {
-    console.warn('[verify] OpenSea API:', err.message);
+  const attempts = 3;
+  let lastReadError = null;
+  let sawEmptyBio = false;
+
+  for (let i = 1; i <= attempts; i++) {
+    // 1) Official API
+    try {
+      const bio = await fetchBioViaApi(wallet);
+      console.log(`[verify] API attempt ${i}: bioLen=${(bio || '').length}`);
+      if (bioContainsCode(bio, code)) return true;
+      if (bio != null) sawEmptyBio = true;
+    } catch (err) {
+      lastReadError = err;
+      console.warn(`[verify] OpenSea API attempt ${i}:`, err.message);
+    }
+
+    // 2) Public page
+    try {
+      const page = await fetchBioViaPage(wallet);
+      const bios = extractBiosFromHtml(typeof page === 'string' ? page : '');
+      console.log(
+        `[verify] page attempt ${i}: pageLen=${String(page || '').length} bios=${bios.length}`
+      );
+      if (bioContainsCode(page, code)) return true;
+      for (const b of bios) {
+        if (bioContainsCode(b, code)) return true;
+      }
+      if (bios.some((b) => b.trim())) sawEmptyBio = true;
+    } catch (err) {
+      lastReadError = err;
+      console.error(`[verify] OpenSea page attempt ${i}:`, err.message);
+    }
+
+    if (i < attempts) await sleep(1500 * i);
   }
 
-  // 2) Public profile scrape
+  // Profile readable but code absent
+  if (sawEmptyBio || lastReadError == null) return false;
+  throw new Error(
+    lastReadError.message || 'OpenSea profile unavailable — try again in a few seconds'
+  );
+}
+
+/** Exported for admin self-test */
+async function debugOpenSeaLookup(wallet, code) {
+  const result = { wallet, code, api: null, page: null, match: false };
   try {
-    const bioOrHtml = await fetchBioViaPage(wallet);
-    return bioContainsCode(bioOrHtml, code);
-  } catch (err) {
-    console.error('[verify] OpenSea page scrape failed:', err.message);
-    throw new Error('OpenSea profile unavailable — try again in a few seconds');
+    result.api = { bio: await fetchBioViaApi(wallet) };
+  } catch (e) {
+    result.api = { error: e.message, status: e.status };
   }
+  try {
+    const page = await fetchBioViaPage(wallet);
+    result.page = {
+      len: String(page).length,
+      bios: extractBiosFromHtml(String(page)),
+      hasCode: bioContainsCode(page, code),
+    };
+  } catch (e) {
+    result.page = { error: e.message };
+  }
+  try {
+    result.match = await checkOpenSeaBio(wallet, code);
+  } catch (e) {
+    result.match = false;
+    result.matchError = e.message;
+  }
+  return result;
 }
 
 // ── Exports ───────────────────────────────────────────────────────────────────
@@ -504,4 +599,5 @@ module.exports = {
   handleCaptcha, handleVerify, handleCheck,
   handleSetupVerify, handleSetupHolder,
   handleButtonInteraction, handleModalSubmit,
+  checkOpenSeaBio, debugOpenSeaLookup,
 };

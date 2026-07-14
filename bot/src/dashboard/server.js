@@ -241,6 +241,26 @@ app.post('/api/raffles/:id/draw', requireAuth, async (req, res) => {
   }
 });
 
+// ── Debug: OpenSea bio lookup (admin) ─────────────────────────────────────────
+app.post('/api/debug/opensea-bio', requireAuth, async (req, res) => {
+  try {
+    const wallet = String(req.body?.wallet || '').trim();
+    const code = String(req.body?.code || '').trim();
+    if (!/^0x[0-9a-fA-F]{40}$/.test(wallet)) {
+      return res.status(400).json({ error: 'invalid wallet' });
+    }
+    const { debugOpenSeaLookup } = require('../commands/verify');
+    const result = await debugOpenSeaLookup(wallet, code || '000000');
+    res.json({
+      ok: true,
+      hasApiKey: !!process.env.OPENSEA_API_KEY,
+      ...result,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Public raffle API — proxy moze-api public list (no auth) ──────────────────
 app.get('/public/raffles', async (req, res) => {
   res.header('Access-Control-Allow-Origin', '*');

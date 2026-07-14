@@ -903,14 +903,13 @@ function renderLeaderboardTable(data, keepShown = false) {
   if (!keepShown) lbCurrentShown = LB_INITIAL_SHOW;
 
   const you = (stakeAccount || '').toLowerCase();
-  // Active Moze only: still hold NFT and/or still have soft-stake positions.
-  // Drop "ghost" rows with soft $MOZE left but held=0 and staked=0 (sold everything).
+  // Only wallets that currently hold ≥1 Moze on-chain (hide held=0 entirely).
   const stakers = (data.rows || []).filter((r) => {
     const held = Number(r.held) || 0;
-    const staked = Number(r.staked) || 0;
     const soft = Number(r.softMoze) || 0;
-    if (soft <= 0 && staked <= 0) return false;
-    return held > 0 || staked > 0;
+    const staked = Number(r.staked) || 0;
+    if (held < 1) return false;
+    return soft > 0 || staked > 0;
   });
   if (!stakers.length) {
     tbody.innerHTML = '<tr><td colspan="4" class="lb-empty">No stakers yet — be the first.</td></tr>';

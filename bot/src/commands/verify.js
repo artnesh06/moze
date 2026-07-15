@@ -4,7 +4,6 @@ const {
   ModalBuilder, TextInputBuilder, TextInputStyle,
 } = require('discord.js');
 const axios = require('axios');
-const { ethers } = require('ethers');
 const { generateCaptcha } = require('../captcha');
 const {
   saveCode, saveCaptcha, getCaptcha, deleteCaptcha,
@@ -26,21 +25,6 @@ function statusMsg(step, total, title, detail = '') {
     `\`${bar}\`  step ${step}/${total}`,
     detail ? `\n${detail}` : '',
   ].join('\n');
-}
-
-/** Exact message user must personal_sign */
-function buildSignMessage(code, wallet) {
-  return [
-    'Moze Holder Verify',
-    `Code: ${code}`,
-    `Address: ${String(wallet).toLowerCase()}`,
-  ].join('\n');
-}
-
-function verifyWalletSignature(code, wallet, signature) {
-  const msg = buildSignMessage(code, wallet);
-  const recovered = ethers.verifyMessage(msg, signature.trim());
-  return recovered.toLowerCase() === String(wallet).toLowerCase();
 }
 
 // ── Commands ──────────────────────────────────────────────────────────────────
@@ -136,7 +120,7 @@ async function handleCaptchaModalSubmit(interaction) {
   }
 }
 
-// ── Holder Verify ─────────────────────────────────────────────────────────────
+// ── Holder Verify (simple: code → OpenSea bio → wallet check → role) ─────────
 
 async function handleVerify(interaction) {
   await interaction.deferReply({ ephemeral: true });
@@ -144,29 +128,21 @@ async function handleVerify(interaction) {
   const code = makeVerifyCode();
   saveCode(interaction.user.id, code);
 
-  const signTemplate = [
-    'Moze Holder Verify',
-    `Code: ${code}`,
-    'Address: 0xYOUR_WALLET',
-  ].join('\n');
-
-  // Signature proves wallet ownership (OpenSea bio needs API key / is unreliable).
   const embed = new EmbedBuilder()
     .setTitle('Holder verify')
     .setDescription([
-      'Prove the wallet is yours, then we check your NFTs.',
+      'Prove the wallet is yours with a one-time code.',
       '',
       '**How:**',
-      '1. Copy the 3-line message below',
-      '2. Put your address in **lowercase** (replace `0xYOUR_WALLET`)',
-      '3. Sign that message (MetaMask / Rabby / [MyCrypto](https://app.mycrypto.com/sign-message))',
-      '4. **Check wallet** → paste address + the signature you get',
+      '1. Copy the **code** below',
+      '2. Paste it in your **OpenSea bio** → Save',
+      '3. Hit **Check wallet** and enter your wallet address',
       '',
+      'We check OpenSea → your NFTs → assign roles.',
       'Code lasts **10 minutes**. Moze & Gremlin Cartel supported.',
     ].join('\n'))
     .addFields(
       { name: 'Your code', value: `\`\`\`${code}\`\`\`` },
-      { name: 'Message to sign (exact)', value: `\`\`\`${signTemplate}\`\`\`` },
     )
     .setColor(0xC6E607)
     .setFooter({ text: 'mozestreet.art' });
@@ -177,9 +153,9 @@ async function handleVerify(interaction) {
       .setLabel('Check wallet')
       .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
-      .setLabel('Sign message help ↗')
+      .setLabel('OpenSea bio ↗')
       .setStyle(ButtonStyle.Link)
-      .setURL('https://app.mycrypto.com/sign-message'),
+      .setURL('https://opensea.io/settings/profile'),
   );
 
   await interaction.editReply({ embeds: [embed], components: [row] });
@@ -199,113 +175,110 @@ async function handleCheckWalletModal(interaction) {
         .setPlaceholder('0x...')
         .setMinLength(10).setMaxLength(100).setRequired(true)
     ),
-    new ActionRowBuilder().addComponents(
-      new TextInputBuilder()
-        .setCustomId('sig_input')
-        .setLabel('Signature')
-        .setStyle(TextInputStyle.Paragraph)
-        .setPlaceholder('0x…')
-        .setRequired(true)
-        .setMaxLength(400)
-    ),
   );
   await interaction.showModal(modal);
 }
 
-/** True if user pasted a 20-byte address into the signature field by mistake */
-function looksLikeWalletAddress(hex) {
-  return /^0x[0-9a-fA-F]{40}$/.test((hex || '').trim());
+async function assignHolderRoles(interaction, mozeBalance, gremlinsBalance) {
+  const roles = getRoles();
+  const mozeRoleName = getRoleForCount(mozeBalance, roles);
+  const assigned = [];
+
+  if (mozeBalance > 0 && mozeRoleName) {
+    const holderRoleNames = roles.map(r => r.role_name);
+    const toRemove = interaction.member.roles.cache.filter(r => holderRoleNames.includes(r.name));
+    for (const [, r] of toRemove) await interaction.member.roles.remove(r).catch(() => {});
+    const role = interaction.guild.roles.cache.find(r => r.name === mozeRoleName);
+    if (role) {
+      try {
+        await interaction.member.roles.add(role);
+        assigned.push(`**${mozeRoleName}** (${mozeBalance} Moze)`);
+      } catch (err) {
+        assigned.push(`⚠️ role **${mozeRoleName}** found but add failed: ${err.message}`);
+      }
+    } else {
+      assigned.push(
+        `⚠️ config wants **${mozeRoleName}** but that Discord role is missing (fix Roles in admin)`
+      );
+    }
+  } else if (mozeBalance > 0 && !mozeRoleName) {
+    assigned.push(
+      `⚠️ Moze **${mozeBalance}** on-chain but no roles_config tier matches (admin → Roles)`
+    );
+  }
+
+  if (gremlinsBalance > 0) {
+    const gremlinsRole = interaction.guild.roles.cache.find(r => r.name === 'Gremlins');
+    if (gremlinsRole) {
+      try {
+        await interaction.member.roles.add(gremlinsRole);
+        assigned.push(`**Gremlins** (${gremlinsBalance} NFTs)`);
+      } catch (err) {
+        assigned.push(`⚠️ **Gremlins** add failed: ${err.message}`);
+      }
+    } else {
+      assigned.push('⚠️ Gremlins balance > 0 but Discord role **Gremlins** missing');
+    }
+  }
+
+  return assigned;
 }
 
 async function handleCheckModalSubmit(interaction) {
   await interaction.deferReply({ ephemeral: true });
 
   const wallet = interaction.fields.getTextInputValue('wallet_input').trim();
-  let signature = '';
-  try {
-    signature = (interaction.fields.getTextInputValue('sig_input') || '').trim();
-  } catch {
-    signature = '';
-  }
 
   if (!/^0x[0-9a-fA-F]{40}$/.test(wallet)) {
     return interaction.editReply({ content: 'That wallet address looks invalid.' });
   }
-  if (!signature || !signature.startsWith('0x')) {
-    return interaction.editReply({
-      content: 'Signature required. Sign the 3-line message, then paste the `0x…` signature here.',
-    });
-  }
+
   const pending = getCode(interaction.user.id);
   if (!pending) return interaction.editReply({ content: 'No active code. Hit **Holder Verify** again.' });
   if (Date.now() - pending.created_at > 10 * 60 * 1000) {
     return interaction.editReply({ content: 'Code expired. Hit **Holder Verify** again.' });
   }
 
-  // Common mistake: paste wallet address into Signature field
-  if (looksLikeWalletAddress(signature)) {
-    return interaction.editReply({
-      content: [
-        '**Stuck at step 1 — you pasted a wallet address, not a signature**',
-        '',
-        'Field **Signature** needs the long string from **Sign Message** in your wallet (~130+ characters).',
-        'What you pasted looks like an **address** (~42 characters) — same as Field 1.',
-        '',
-        '**Do this:**',
-        '1. Open MetaMask / Rabby → Sign Message (or [MyCrypto](https://app.mycrypto.com/sign-message))',
-        '2. Paste the 3-line message, sign with this wallet',
-        '3. Copy the **signature** result (long `0x…`)',
-        '4. **Check wallet** again: address in field 1, signature in field 2',
-        '',
-        'Sign **exactly** this (address lowercase):',
-        '```',
-        buildSignMessage(pending.code, wallet),
-        '```',
-      ].join('\n'),
-    });
-  }
-
   const TOTAL = 3;
   const setStep = (step, title, detail) =>
     interaction.editReply({ content: statusMsg(step, TOTAL, title, detail) });
 
-  // ── Step 1: signature ─────────────────────────────────────────────────────
+  // ── Step 1: OpenSea bio ───────────────────────────────────────────────────
   await setStep(
     1,
-    'Checking signature…',
-    `Wallet \`${wallet}\`\nVerifying you signed the code message.`
+    'Checking OpenSea bio…',
+    `Wallet \`${wallet}\`\nLooking for code **${pending.code}** in your OpenSea bio.`
   );
 
-  let proven = false;
+  let bioOk = false;
   try {
-    proven = verifyWalletSignature(pending.code, wallet, signature);
+    bioOk = await checkOpenSeaBio(wallet, pending.code);
   } catch (err) {
     return interaction.editReply({
       content: [
-        '**Stuck at step 1 — bad signature**',
+        '**Stuck at step 1 — can’t read OpenSea**',
         err.message,
         '',
-        'Tip: signature is a **long** `0x…` from Sign Message — not your wallet address.',
-        '',
-        'Sign **exactly** this (address lowercase):',
-        '```',
-        buildSignMessage(pending.code, wallet),
-        '```',
+        'Make sure the profile is public, code is in **bio**, then try again in a few seconds.',
+        `Code: \`${pending.code}\``,
+        'Edit bio: https://opensea.io/settings/profile',
       ].join('\n'),
     });
   }
 
-  if (!proven) {
+  if (!bioOk) {
     return interaction.editReply({
       content: [
-        '**Stuck at step 1 — signature mismatch**',
-        'Wallet or code doesn’t match the signature.',
+        '**Stuck at step 1 — code not found in OpenSea bio**',
         '',
-        'Sign **exactly** this (address must be lowercase):',
+        `Put this code in your OpenSea bio and **Save**:`,
         '```',
-        buildSignMessage(pending.code, wallet),
+        pending.code,
         '```',
-        'Then **Check wallet** again with the new signature.',
+        `Wallet must match: \`${wallet}\``,
+        '',
+        'Tips: wait a few seconds after Save (OpenSea cache), then **Check wallet** again.',
+        'Edit bio: https://opensea.io/settings/profile',
       ].join('\n'),
     });
   }
@@ -331,45 +304,7 @@ async function handleCheckModalSubmit(interaction) {
     `Moze: **${mozeBalance}** · Gremlins: **${gremlinsBalance}**`
   );
 
-  const assigned = [];
-
-  if (mozeBalance > 0 && mozeRoleName) {
-    const holderRoleNames = roles.map(r => r.role_name);
-    const toRemove = interaction.member.roles.cache.filter(r => holderRoleNames.includes(r.name));
-    for (const [, r] of toRemove) await interaction.member.roles.remove(r).catch(() => {});
-    const role = interaction.guild.roles.cache.find(r => r.name === mozeRoleName);
-    if (role) {
-      try {
-        await interaction.member.roles.add(role);
-        assigned.push(`**${mozeRoleName}** (${mozeBalance} Moze)`);
-      } catch (err) {
-        assigned.push(`⚠️ role **${mozeRoleName}** found but add failed: ${err.message}`);
-      }
-    } else {
-      assigned.push(
-        `⚠️ config wants **${mozeRoleName}** but that Discord role is missing (rename role or fix Roles in admin dashboard)`
-      );
-    }
-  } else if (mozeBalance > 0 && !mozeRoleName) {
-    assigned.push(
-      `⚠️ Moze **${mozeBalance}** on-chain but no roles_config tier matches (check admin → Roles)`
-    );
-  }
-
-  if (gremlinsBalance > 0) {
-    const gremlinsRole = interaction.guild.roles.cache.find(r => r.name === 'Gremlins');
-    if (gremlinsRole) {
-      try {
-        await interaction.member.roles.add(gremlinsRole);
-        assigned.push(`**Gremlins** (${gremlinsBalance} NFTs)`);
-      } catch (err) {
-        assigned.push(`⚠️ **Gremlins** add failed: ${err.message}`);
-      }
-    } else {
-      assigned.push('⚠️ Gremlins balance > 0 but Discord role **Gremlins** missing');
-    }
-  }
-
+  const assigned = await assignHolderRoles(interaction, mozeBalance, gremlinsBalance);
   const realRoles = assigned.filter((a) => a.startsWith('**'));
   const warnings = assigned.filter((a) => a.startsWith('⚠️'));
 
@@ -381,7 +316,7 @@ async function handleCheckModalSubmit(interaction) {
           ? '**Done — wallet linked, no holder role**'
           : '**Done — wallet linked, holder role not applied**',
         `Wallet: \`${wallet}\``,
-        `Signature OK. On-chain: Moze **${mozeBalance}** · Gremlins **${gremlinsBalance}**`,
+        `OpenSea OK. On-chain: Moze **${mozeBalance}** · Gremlins **${gremlinsBalance}**`,
         '',
         zeroNft
           ? 'No Moze / Gremlin NFTs on this address.'
@@ -397,20 +332,13 @@ async function handleCheckModalSubmit(interaction) {
     });
   }
 
-  // Prefer clean success when at least one real role applied; still show warnings if any
-  if (warnings.length) {
-    // fall through with realRoles only in success message; warnings appended below
-  }
-  // rewrite assigned for success line
-  const successAssigned = realRoles;
-
   await interaction.editReply({
     content: [
       '**Holder verified** ✓',
       `\`● ● ●\`  step ${TOTAL}/${TOTAL}`,
       '',
       `Wallet: \`${wallet}\``,
-      `Roles: ${successAssigned.join(', ')}`,
+      `Roles: ${realRoles.join(', ')}`,
       ...(warnings.length ? ['', ...warnings] : []),
     ].join('\n'),
   });
@@ -425,11 +353,9 @@ async function handleCheck(interaction) {
   const pending = getCode(interaction.user.id);
   if (!pending) return interaction.editReply({ content: 'No active code. Run **Holder Verify** first.' });
   if (Date.now() - pending.created_at > 10 * 60 * 1000) return interaction.editReply({ content: 'Code expired. Start again.' });
-  // Reuse modal submit logic by simulating the fields
   interaction.fields = {
     getTextInputValue: (id) => (id === 'wallet_input' ? wallet : ''),
   };
-  // skip double defer
   interaction.deferReply = async () => ({});
   return handleCheckModalSubmit(interaction);
 }
@@ -620,7 +546,8 @@ async function sleep(ms) {
  * Throws only when we cannot read profile at all.
  */
 async function checkOpenSeaBio(wallet, code) {
-  const attempts = 3;
+  // More retries — OpenSea cache lag after Save is common
+  const attempts = 5;
   let pageOk = false; // got some HTML/API response we could inspect
   let lastHardError = null;
 
@@ -654,7 +581,7 @@ async function checkOpenSeaBio(wallet, code) {
       console.error(`[verify] OpenSea page attempt ${i}:`, err.message);
     }
 
-    if (i < attempts) await sleep(1500 * i);
+    if (i < attempts) await sleep(2000 * i);
   }
 
   // We could read something but code wasn't there
